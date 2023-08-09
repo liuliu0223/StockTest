@@ -47,7 +47,7 @@ class MyStrategy(bt.Strategy):
             if order.isbuy():
                 self.buy_price = order.executed.price
                 self.buy_comm = order.executed.comm
-                self.pos = self.getposition(data).size
+                self.pos = self.getposition(self.data).size
                 self.buy_cost = order.executed.value
                 self.valued = self.broker.getvalue()
                 self.log(
@@ -57,7 +57,7 @@ class MyStrategy(bt.Strategy):
                      order.executed.comm,
                      self.valued) + ", 仓位：" + str(self.pos))
             elif order.issell():
-                self.pos = self.getposition(data).size
+                self.pos = self.getposition(self.data).size
                 self.log('SELL EXECUTED, Price: %.2f, Cost: %.2f, 佣金Comm %.2f, 当前总资产Value %.2f, 仓位Size %.2f' %
                          (order.executed.price,
                           order.executed.value,
@@ -158,54 +158,59 @@ def getcodesfile():
     return filename
 
 
+def run_strategy(code, startdate, enddate):
+    csvfile = createnewfile(code)
+    get_sh_stockinfo(code)
+    print("创建一个CSV文件：" + csvfile)
+    file = open(csvfile, 'w', encoding='utf-8')
+    # 默认返回不复权的数据; qfq: 返回前复权后的数据; hfq: 返回后复权后的数据; hfq-factor: 返回后复权因子; qfq-factor: 返回前复权因子
+    stock_hfq_df = ak.stock_zh_a_daily(symbol=code, start_date=startdate, end_date=enddate,
+                                       adjust="qfq")  # 接口参数格式 股票代码必须含有sh或zz的前缀
+    if stock_hfq_df is None:
+        print("Warning, run_strategy: stock_hfq_df is None!")
+        return -1
+    else:
+        stock_hfq_df.to_csv(file, encoding='utf-8')
+        file.close()
+    df = pd.read_csv(csvfile, parse_dates=True, index_col="date")
+    df.index = pd.to_datetime(df.index, format="%Y-%m-%d", utc=True)
+    # 创建Cerebro引擎
+    cerebro = bt.Cerebro()  # 初始化回测系统
+    from_date = datetime.datetime.strptime(startdate, "%Y%m%d")
+    end_date = datetime.datetime.strptime(enddate, "%Y%m%d")
+    data = bt.feeds.PandasData(dataname=df, fromdate=from_date, todate=end_date)  # 加载数据
+    cerebro.adddata(data)  # 将数据传入回测系统
+    start_cash = 150000
+    cerebro.broker.setcash(start_cash)  # 设置初始资本为 100000
+    cerebro.broker.setcommission(commission=0.002)  # 设置交易手续费为 0.2%
+    stake = 1500
+    cerebro.addsizer(bt.sizers.FixedSize, stake=stake)  # 设置买入数量
+    cerebro.addstrategy(MyStrategy)  # period = [(5, 10), (20, 100), (2, 10)])
+    print('组合期初资金: %.2f' % cerebro.broker.getvalue())
+    cerebro.run(maxcpus=1)  # 运行回测系统
+    print('组合期末资金: %.2f' % cerebro.broker.getvalue())
+    port_value = cerebro.broker.getvalue()  # 获取回测结束后的总资金
+    pnl = port_value - start_cash  # 盈亏统计
+    print(f"初始资金: {start_cash}\n回测期间：{startdate}:{enddate}")
+    print(f"总资金: {round(port_value, 2)}")
+    print(f"净收益: {round(pnl, 2)}\n\n")
+    # cerebro.plot(style='candlestick')  # 画图
+    return 0
+
+
 if __name__ == '__main__':
     plt.switch_backend('agg')
     plt.rcParams["font.sans-serif"] = ["SimHei"]  # 设置画图时的中文显示
     plt.rcParams["axes.unicode_minus"] = False  # 设置画图时的负号显示
     codes = getCodes(getcodesfile())
-
-    #startdate = datetime.date(2023, 6, 1)  # 回测开始时间
-    #enddate = datetime.date(2023, 7, 26)  # 回测结束时间
-    startdate = str(codes[0]).replace('\n', '')
-    enddate = str(codes[1]).replace('\n', '')
+    startdate = str(codes[0]).replace('\n', '')  # 回测开始时间
+    enddate = str(codes[1]).replace('\n', '')  # 回测结束时间
     it = 0
     for code in codes:
         if it > 1:
             code = str(codes[it]).replace('\n', '')  # "sz300598"
-            csvfile = createnewfile(code)
-            get_sh_stockinfo(code)
-            print("创建一个CSV文件：" + csvfile)
-            file = open(csvfile, 'w', encoding='utf-8')
-            # 默认返回不复权的数据; qfq: 返回前复权后的数据; hfq: 返回后复权后的数据; hfq-factor: 返回后复权因子; qfq-factor: 返回前复权因子
-            stock_hfq_df = ak.stock_zh_a_daily(symbol=code, start_date=startdate, end_date=enddate, adjust="qfq")  # adjust="hfq"
-            # 接口参数格式 股票代码必须含有sh或zz的前缀
-            if stock_hfq_df is None:
+            run_result = run_strategy(code, startdate, enddate)
+            if run_result < 0:
                 break
-            else:
-                stock_hfq_df.to_csv(file, encoding='utf-8')
-                file.close()
-            df = pd.read_csv(csvfile, parse_dates=True, index_col="date")
-            df.index = pd.to_datetime(df.index, format="%Y-%m-%d", utc=True)
-            # 创建Cerebro引擎
-            cerebro = bt.Cerebro()  # 初始化回测系统
-            from_date = datetime.datetime.strptime(startdate, "%Y%m%d")
-            end_date = datetime.datetime.strptime(enddate, "%Y%m%d")
-            data = bt.feeds.PandasData(dataname=df, fromdate=from_date, todate=end_date)  # 加载数据
-            cerebro.adddata(data)  # 将数据传入回测系统
-            start_cash = 150000
-            cerebro.broker.setcash(start_cash)  # 设置初始资本为 100000
-            cerebro.broker.setcommission(commission=0.002)  # 设置交易手续费为 0.2%
-            stake = 1500
-            cerebro.addsizer(bt.sizers.FixedSize, stake=stake)  # 设置买入数量
-            cerebro.addstrategy(MyStrategy)  # period = [(5, 10), (20, 100), (2, 10)])
-            print('组合期初资金: %.2f' % cerebro.broker.getvalue())
-            cerebro.run(maxcpus=1)  # 运行回测系统
-            print('组合期末资金: %.2f' % cerebro.broker.getvalue())
-            port_value = cerebro.broker.getvalue()  # 获取回测结束后的总资金
-            pnl = port_value - start_cash  # 盈亏统计
-            print(f"初始资金: {start_cash}\n回测期间：{startdate}:{enddate}")
-            print(f"总资金: {round(port_value, 2)}")
-            print(f"净收益: {round(pnl, 2)}\n\n")
-            #cerebro.plot(style='candlestick')  # 画图
         it = it + 1
 
