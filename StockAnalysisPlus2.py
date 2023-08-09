@@ -10,7 +10,6 @@ class MyStrategy(bt.Strategy):
     """
     主策略程序
     """
-
     params = dict(
         pfast=5,  # period for the fast moving average
         pslow=10  # period for the slow moving average
@@ -158,26 +157,31 @@ def getcodesfile():
     return filename
 
 
-def run_strategy(code, startdate, enddate):
-    csvfile = createnewfile(code)
-    get_sh_stockinfo(code)
+# 准备历史数据做预测评估
+def prepare_data(f_code, f_startdate, f_enddate):
+    csvfile = createnewfile(f_code)
+    get_sh_stockinfo(f_code)
     print("创建一个CSV文件：" + csvfile)
     file = open(csvfile, 'w', encoding='utf-8')
     # 默认返回不复权的数据; qfq: 返回前复权后的数据; hfq: 返回后复权后的数据; hfq-factor: 返回后复权因子; qfq-factor: 返回前复权因子
-    stock_hfq_df = ak.stock_zh_a_daily(symbol=code, start_date=startdate, end_date=enddate,
+    stock_hfq_df = ak.stock_zh_a_daily(symbol=f_code, start_date=f_startdate, end_date=f_enddate,
                                        adjust="qfq")  # 接口参数格式 股票代码必须含有sh或zz的前缀
     if stock_hfq_df is None:
         print("Warning, run_strategy: stock_hfq_df is None!")
-        return -1
     else:
         stock_hfq_df.to_csv(file, encoding='utf-8')
         file.close()
-    df = pd.read_csv(csvfile, parse_dates=True, index_col="date")
+    return csvfile
+
+
+# 从指定文件中读取数据，并运行回测函数
+def run_strategy(f_startdate, f_enddate, f_file):
+    df = pd.read_csv(f_file, parse_dates=True, index_col="date")
     df.index = pd.to_datetime(df.index, format="%Y-%m-%d", utc=True)
     # 创建Cerebro引擎
     cerebro = bt.Cerebro()  # 初始化回测系统
-    from_date = datetime.datetime.strptime(startdate, "%Y%m%d")
-    end_date = datetime.datetime.strptime(enddate, "%Y%m%d")
+    from_date = datetime.datetime.strptime(f_startdate, "%Y%m%d")
+    end_date = datetime.datetime.strptime(f_enddate, "%Y%m%d")
     data = bt.feeds.PandasData(dataname=df, fromdate=from_date, todate=end_date)  # 加载数据
     cerebro.adddata(data)  # 将数据传入回测系统
     start_cash = 150000
@@ -195,7 +199,6 @@ def run_strategy(code, startdate, enddate):
     print(f"总资金: {round(port_value, 2)}")
     print(f"净收益: {round(pnl, 2)}\n\n")
     # cerebro.plot(style='candlestick')  # 画图
-    return 0
 
 
 if __name__ == '__main__':
@@ -209,8 +212,11 @@ if __name__ == '__main__':
     for code in codes:
         if it > 1:
             code = str(codes[it]).replace('\n', '')  # "sz300598"
-            run_result = run_strategy(code, startdate, enddate)
-            if run_result < 0:
+            filepath = prepare_data(code, startdate, enddate)
+            file_size = os.path.getsize(filepath)
+            if file_size > 0:
+                run_strategy(startdate, enddate, filepath)
+            else:
                 break
         it = it + 1
 
