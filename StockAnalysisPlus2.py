@@ -5,6 +5,9 @@ import akshare as ak
 import pandas as pd
 import matplotlib.pyplot as plt
 
+STAKE = 1500
+START_CASH = 150000
+COMM_VALUE = 0.002
 
 class MyStrategy(bt.Strategy):
     """
@@ -87,29 +90,22 @@ class MyStrategy(bt.Strategy):
         # 也可以直接获取持仓
         size = self.getposition(self.data).size
         price = self.getposition(self.data).price
+        self.cash_valid = self.broker.getcash()
         self.valued = self.broker.getvalue()
-        self.buy_comm = price * size * 0.002
-        #size_buy = self.cash_valid/(self.data_close[0]*1.02)
+        self.buy_comm = price * size * COMM_VALUE
         if not self.position:  # 不在场内，则可以买入
             if self.crossover > 0:  # 如果金叉,valid=datetime.datetime.now() + datetime.timedelta(days=3)
-                self.log('当前可用资金: %.2f, 当前总资产: %.2f' %
-                         (self.broker.getcash(),
-                          self.broker.getvalue()))
+                self.log('当前可用资金: %.2f, 当前总资产: %.2f' % (self.cash_valid, self.valued))
                 self.order = self.buy()
-                self.cash_valid = self.broker.getcash()
-                self.valued = self.broker.getvalue()
                 self.log('不在场内，金叉,买入, 盘终价: %.2f' % self.data_close[0])
         else:
-            #condition = (self.data_close[0] - self.buy_price)/self.data_close[0]
-            #if self.crossover < 0 or condition < 0.97 or (condition > 1.01 and self.dif[0] < self.dif[1]*0.95):
-                #self.close(volume=False)   # 卖出
-                #self.log('在场内，且死叉,卖出, 盘终价: %.2f' % self.data_close[0])
-
-            if self.crossover < 0:  # 在场内，且死叉
-                #self.buy_comm = price * 0.02 * size
-                #self.pnl = self.valued - price * size - self.buy_comm - 150000
-                #if self.pnl > -2000:
-                if self.valued > (150000 + self.buy_comm):
+            if self.crossover > 0:
+                if (self.cash_valid - price * STAKE - self.buy_comm) > 0:
+                    self.log('当前可用资金: %.2f, 当前总资产: %.2f' % (self.cash_valid, self.valued))
+                    self.order = self.buy()
+                    self.log('不在场内，金叉,买入, 盘终价: %.2f' % self.data_close[0])
+            elif self.crossover < 0:  # 在场内，且死叉
+                if self.valued > START_CASH * 1.05:
                     self.order = self.close(size=size)
                     self.log('在场内，且死叉, 卖出，盘终价: %.2f，当前账户价值：%.2f' %
                              (self.data_close[0], self.valued))
@@ -184,10 +180,10 @@ def run_strategy(f_startdate, f_enddate, f_file):
     end_date = datetime.datetime.strptime(f_enddate, "%Y%m%d")
     data = bt.feeds.PandasData(dataname=df, fromdate=from_date, todate=end_date)  # 加载数据
     cerebro.adddata(data)  # 将数据传入回测系统
-    start_cash = 150000
+    start_cash = START_CASH
     cerebro.broker.setcash(start_cash)  # 设置初始资本为 100000
-    cerebro.broker.setcommission(commission=0.002)  # 设置交易手续费为 0.2%
-    stake = 1500
+    cerebro.broker.setcommission(commission=COMM_VALUE)  # 设置交易手续费为 0.2%
+    stake = STAKE
     cerebro.addsizer(bt.sizers.FixedSize, stake=stake)  # 设置买入数量
     cerebro.addstrategy(MyStrategy)  # period = [(5, 10), (20, 100), (2, 10)])
     print('组合期初资金: %.2f' % cerebro.broker.getvalue())
