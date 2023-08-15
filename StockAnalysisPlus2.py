@@ -5,9 +5,10 @@ import akshare as ak
 import pandas as pd
 import matplotlib.pyplot as plt
 
-STAKE = 1500
-START_CASH = 150000
-COMM_VALUE = 0.002
+STAKE = 1500  # 每次买入的数量
+START_CASH = 150000  # 初始投资金额
+COMM_VALUE = 0.002   # 手续费率
+
 
 class MyStrategy(bt.Strategy):
     """
@@ -35,10 +36,10 @@ class MyStrategy(bt.Strategy):
         self.cash_valid = None  # 可用资金
         self.valued = None  # 总收益
         self.pnl = None  # 利润
-        sma1 = bt.ind.SMA(period=self.p.pfast)  # fast moving average
-        sma2 = bt.ind.SMA(period=self.p.pslow)  # slow moving average
-        self.dif = sma1 - sma2
-        self.crossover = bt.ind.CrossOver(sma1, sma2)  # crossover signal
+        self.sma1 = bt.ind.SMA(period=self.p.pfast)  # fast moving average
+        self.sma2 = bt.ind.SMA(period=self.p.pslow)  # slow moving average
+        self.dif = self.sma1 - self.sma2
+        self.crossover = bt.ind.CrossOver(self.sma1, self.sma2)  # crossover signal
 
     # 订单状态消息通知函数
     def notify_order(self, order):
@@ -66,8 +67,6 @@ class MyStrategy(bt.Strategy):
                           order.executed.comm,
                           self.valued,
                           float(self.pos)))
-
-            #self.bar_executed = len(self)
         elif order.status in [order.Canceled, order.Margin, order.Rejected]:
             if order.status == order.Canceled:
                 self.log('订单取消')
@@ -83,9 +82,6 @@ class MyStrategy(bt.Strategy):
         self.log('交易利润, 毛利润 %.2f, 净利润 %.2f' % (trade.pnl, trade.pnlcomm))
 
     # 每个交易日都会依次循环调用
-    #1） sma5下穿sma10 ；
-    #2）当前收盘价格 > 1.01 * 买入价格并且当前（sma5 - sma10） < 上期(sma5 - sma10) * 0.95；
-    #3）当前收盘价格 < 0.97 * 买入价格;
     def next(self):
         # 也可以直接获取持仓
         size = self.getposition(self.data).size
@@ -105,46 +101,41 @@ class MyStrategy(bt.Strategy):
                     self.order = self.buy()
                     self.log('不在场内，金叉,买入, 盘终价: %.2f' % self.data_close[0])
             elif self.crossover < 0:  # 在场内，且死叉
-                if self.valued > START_CASH * 1.05:
+                if self.valued > START_CASH * 1.03:
                     self.order = self.close(size=size)
                     self.log('在场内，且死叉, 卖出，盘终价: %.2f，当前账户价值：%.2f' %
                              (self.data_close[0], self.valued))
 
 
 def getCodes(file_name):
+    file = None
     try:
         path = os.getcwd() + '\\' + file_name
         print(path + '\n')
         file = open(path, 'r')
         return file.readlines()
     finally:
-        file.close()
+        if file is not None:
+            file.close()
 
 
-def createnewfile(code):
-    basicPath = os.getcwd()
-    codefile = os.getcwd() + '\\' + f'{code}.csv'
-    files = os.listdir(basicPath)
+def createFile(f_code):
+    basic_path = os.getcwd()
+    code_file = str(basic_path + '\\' + f'{f_code}.csv')
+    files = os.listdir(basic_path)
     for file in files:
-        if codefile == (basicPath+str(file.title())):
+        if code_file == (basic_path + str(file.title())):
             print("file的title信息：" + file.title() + '\n')
-            os.close(file)
-    print("codefile信息：" + codefile + '\n')
-    return codefile
+            return code_file
 
 
-def get_sh_stockinfo(s_code):
+def get_sh_stock(s_code):
     s_code = s_code[2:]
     df = ak.stock_individual_info_em(symbol=s_code)
     print(df)
-    '''
-    if not df.empty:
-        for iter in df.index:
-            if str(df.item[iter]).find("股票简称") > -1:
-                print(str(df.item[iter]) + ":" + df.value[iter])'''
 
 
-def getcodesfile():
+def getStocks():
     filename = "text.txt"
     if MyStrategy.params.pslow == 20:
         filename = "text520.txt"
@@ -155,10 +146,9 @@ def getcodesfile():
 
 # 准备历史数据做预测评估
 def prepare_data(f_code, f_startdate, f_enddate):
-    csvfile = createnewfile(f_code)
-    get_sh_stockinfo(f_code)
-    print("创建一个CSV文件：" + csvfile)
-    file = open(csvfile, 'w', encoding='utf-8')
+    csv_file = str(createFile(f_code))
+    get_sh_stock(f_code)
+    file = open(csv_file, 'w', encoding='utf-8')
     # 默认返回不复权的数据; qfq: 返回前复权后的数据; hfq: 返回后复权后的数据; hfq-factor: 返回后复权因子; qfq-factor: 返回前复权因子
     stock_hfq_df = ak.stock_zh_a_daily(symbol=f_code, start_date=f_startdate, end_date=f_enddate,
                                        adjust="qfq")  # 接口参数格式 股票代码必须含有sh或zz的前缀
@@ -167,7 +157,7 @@ def prepare_data(f_code, f_startdate, f_enddate):
     else:
         stock_hfq_df.to_csv(file, encoding='utf-8')
         file.close()
-    return csvfile
+    return csv_file
 
 
 # 从指定文件中读取数据，并运行回测函数
@@ -201,7 +191,7 @@ if __name__ == '__main__':
     plt.switch_backend('agg')
     plt.rcParams["font.sans-serif"] = ["SimHei"]  # 设置画图时的中文显示
     plt.rcParams["axes.unicode_minus"] = False  # 设置画图时的负号显示
-    codes = getCodes(getcodesfile())
+    codes = getCodes(getStocks())
     startdate = str(codes[0]).replace('\n', '')  # 回测开始时间
     enddate = str(codes[1]).replace('\n', '')  # 回测结束时间
     it = 0
@@ -215,4 +205,3 @@ if __name__ == '__main__':
             else:
                 break
         it = it + 1
-
