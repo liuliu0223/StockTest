@@ -13,8 +13,6 @@ import requests  # 导入requests库
 from urllib import request
 from bs4 import BeautifulSoup
 import time
-# 图片转化为pdf文件
-import glob
 import fitz
 import os
 
