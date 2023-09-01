@@ -9,13 +9,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # const value
-STAKE = 1000  # volume once
+STAKE = 2500  # volume once
 START_CASH = 150000  # initial cost
 COMM_VALUE = 0.002   # 费率
 
 # globle value
-stock_pnl = []  # 净利润
-stock_list = []  # 股票清单
+stock_pnl = []  # Net profit
+stock_list = []  # stock list
 special_info = []  # 特别注意的事项
 special_code = ""
 
@@ -36,33 +36,36 @@ class MyStrategy(bt.Strategy):
         dt = dt or self.datas[0].datetime.date(0)
         print('%s, %s' % (dt.isoformat(), txt))
 
-    def is_special(self, specialdate, txt):
-        #if datetime.datetime.strftime(specialdate, "%Y-%m-%d") == datetime.date.today():
-        if datetime.datetime.strftime(specialdate, "%Y-%m-%d") == (datetime.datetime.now() + datetime.timedelta(days=-1)).strftime("%Y-%m-%d"):
+    def is_special(self, special_date, txt):
+        yesterday_spe = (datetime.datetime.now() + datetime.timedelta(days=-1)).strftime("%Y-%m-%d")
+        if datetime.datetime.strftime(special_date, "%Y-%m-%d") == yesterday_spe:
             special_info.append({'date': self.datas[0].datetime.date(0),
                                  'code': special_code,
                                  'info': txt})
 
-    # 初始化函数，初始化属性、指标的计算，整个回测系统运行期间只执行一次
+    # 初始化函数，初始化属性、指标的计算，only once time
     def __init__(self):
-        self.data_close = self.datas[0].close  # 指定价格序列
-        # 初始化交易指令、买卖价格和手续费
+        self.data_close = self.datas[0].close  # close data
+        # initial data
         self.order = None
         self.buy_price = None
-        self.buy_comm = None  # 交易额
-        self.buy_cost = None  # 成本
-        self.pos = None  # 股票仓位
-        self.cash_valid = None  # 可用资金
-        self.valued = None  # 总收益
-        self.pnl = None  # 利润
+        self.buy_comm = None  # trial fund
+        self.buy_cost = None  # cost
+        self.pos = None  # pos
+        self.cash_valid = None  # available fund
+        self.valued = None  # total fund
+        self.pnl = None  # profit
         self.sma1 = bt.ind.SMA(period=self.p.pfast)  # fast moving average
         self.sma2 = bt.ind.SMA(period=self.p.pslow)  # slow moving average
         self.dif = self.sma1 - self.sma2
         self.crossover = bt.ind.CrossOver(self.sma1, self.sma2)  # crossover signal
         self.crossover_buy = False
         self.crossover_sell = False
+        self.cross_list = []  # judge the date before golden cross and date after dead cross
+        #self.cross_1 = bt.ind.CrossUp(self.crossover)
+        #self.cross_2 = bt.ind.CrossUp(self.sma2)
 
-    # 订单状态消息通知函数
+    # order statement information
     def notify_order(self, order):
         txt = ""
         if order.status in [order.Submitted, order.Accepted]:
@@ -76,7 +79,8 @@ class MyStrategy(bt.Strategy):
                 self.pos = self.getposition(self.data).size
                 self.buy_cost = order.executed.value
                 self.valued = self.broker.getvalue()
-                txt = 'BUY EXECUTED, Price: %.2f, Cost: %.2f, 佣金Comm %.2f, 当前总资产Value %.2f, 仓位 pos %.2f' % (order.executed.price,
+                txt = 'BUY EXECUTED, Price: %.2f, Cost: %.2f, Comm %.2f, fund Value %.2f, pos Size %.2f' % \
+                      (order.executed.price,
                         order.executed.value,
                         order.executed.comm,
                         self.valued,
@@ -85,7 +89,8 @@ class MyStrategy(bt.Strategy):
             elif order.issell():
                 self.crossover_sell = True
                 self.pos = self.getposition(self.data).size
-                txt = 'SELL EXECUTED, Price: %.2f, Cost: %.2f, 佣金Comm %.2f, 当前总资产Value %.2f, 仓位Size %.2f' %(order.executed.price,
+                txt = 'SELL EXECUTED, Price: %.2f, Cost: %.2f, Comm %.2f, fund Value %.2f, pos Size %.2f' % \
+                      (order.executed.price,
                           order.executed.value,
                           order.executed.comm,
                           self.valued,
@@ -93,11 +98,11 @@ class MyStrategy(bt.Strategy):
                 self.log(txt)
         elif order.status in [order.Canceled, order.Margin, order.Rejected]:
             if order.status == order.Canceled:
-                self.log('订单取消')
+                self.log('order cancel!')
             elif order.status == order.Margin:
-                self.log('保证金不足')
+                self.log('fund not enough!')
             elif order.status == order.Rejected:
-                self.log('拒绝')
+                self.log('order reject!')
         self.order = None
         if self.crossover_buy:
             self.is_special(self.datas[0].datetime.date(0), txt)
@@ -109,38 +114,40 @@ class MyStrategy(bt.Strategy):
     def notify_trade(self, trade):
         if not trade.isclosed:
             return
-        self.log('交易利润, 毛利润 %.2f, 净利润 %.2f' % (trade.pnl, trade.pnlcomm))
+        self.log('business profit: %.2f, Net profit: %.2f' % (trade.pnl, trade.pnlcomm))
 
-    # 每个交易日都会依次循环调用
+    #  loop in every business day
     def next(self):
-        # 也可以直接获取持仓
         size = self.getposition(self.data).size
         price = self.getposition(self.data).price
         self.cash_valid = self.broker.getcash()
         self.valued = self.broker.getvalue()
         self.buy_comm = price * size * COMM_VALUE
-        if not self.position:  # 不在场内，则可以买入
-            if self.crossover > 0:  # 如果金叉,valid=datetime.datetime.now() + datetime.timedelta(days=3)
-                self.log('当前可用资金: %.2f, 当前总资产: %.2f' % (self.cash_valid, self.valued))
+        if not self.position:  # Outside, buy
+            if self.crossover > 0:  # if golden cross, valid=datetime.datetime.now() + datetime.timedelta(days=3)
+                self.log('Available Cash: %.2f, Total fund: %.2f' % (self.cash_valid, self.valued))
                 self.order = self.buy()
-                self.is_special(self.datas[0].datetime.date(0), '不在场内，金叉,买入, 盘终价: %.2f，当前总资产：%.2f' %
-                                   (self.data_close[0], self.valued))
-                self.log('不在场内，金叉,买入, 盘终价: %.2f，当前总资产：%.2f' % (self.data_close[0], self.valued))
+                self.is_special(self.datas[0].datetime.date(0),
+                                'Outside, golden cross buy, close: %.2f，Total fund：%.2f' %
+                                (self.data_close[0], self.valued))
+                self.log('Outside, golden cross buy, close: %.2f，Total fund：%.2f' %
+                         (self.data_close[0], self.valued))
         else:
             if self.crossover > 0:
                 if (self.cash_valid - price * STAKE - self.buy_comm) > 0:
-                    self.log('当前可用资金: %.2f, 当前总资产: %.2f' % (self.cash_valid, self.valued))
+                    self.log('Available Cash: %.2f, Total fund: %.2f' % (self.cash_valid, self.valued))
                     self.order = self.buy()
-                    self.is_special(self.datas[0].datetime.date(0), '不在场内，金叉,买入, 盘终价: %.2f，当前总资产：%.2f' %
-                                       (self.data_close[0], self.valued))
-                    self.log('不在场内，金叉,买入, 盘终价: %.2f' % self.data_close[0])
-            elif self.crossover < 0:  # 在场内，且死叉
+                    self.is_special(self.datas[0].datetime.date(0),
+                                    'Outside, golden cross buy, close: %.2f，Total fund：%.2f' %
+                                    (self.data_close[0], self.valued))
+                    self.log('Outside, golden cross buy, close: %.2f' % self.data_close[0])
+            elif self.crossover < 0:  # Inside and dead cross
                 if self.valued > START_CASH * 1.03:
                     self.order = self.close(size=size)
                     self.is_special(self.datas[0].datetime.date(0),
-                                       '在场内，且死叉, 卖出，盘终价: %.2f，当前总资产：%.2f' %
-                                       (self.data_close[0], self.valued))
-                    self.log('在场内，且死叉, 卖出，盘终价: %.2f，当前总资产：%.2f' %
+                                    'Inside dead cross, sell, close: %.2f，Total fund：%.2f' %
+                                    (self.data_close[0], self.valued))
+                    self.log('Inside dead cross, sell, close:  %.2f，Total fund：%.2f' %
                              (self.data_close[0], self.valued))
 
 
@@ -200,17 +207,21 @@ def get_consider(filepath):
     it = 0
     max_list = []
     min_list = []
+    close_list = []
     while it < len(df):
         max_list.append(df['high'].values[it])
         min_list.append(df['low'].values[it])
+        close_list.append(df['close'].values[it])
         it += 1
     max_median = np.median(max_list)
     max_value = np.max(max_list)
     min_median = np.median(min_list)
     min_value = np.min(min_list)
+    close_median = np.median(close_list)
     # print(f"initial cost: {START_CASH} \nPeriod：{startdate}:{enddate}")
     print('Max median value: %.2f, max value: %.2f' % (max_median, max_value))
     print('Min median value: %.2f, min value: %.2f' % (min_median, min_value))
+    print('Close median value: %.2f' % close_median)
     return df
 
 
@@ -223,27 +234,26 @@ def run_strategy(f_startdate, f_enddate, f_file):
     # 创建Cerebro引擎
     cerebro = bt.Cerebro()  # 初始化回测系统
     cerebro.adddata(data)  # 将数据传入回测系统
-    start_cash = START_CASH
-    cerebro.broker.setcash(start_cash)  # 设置初始资本
-    cerebro.broker.setcommission(commission=COMM_VALUE)  # 设置交易手续费为 0.2%
+    #start_cash = START_CASH
+    cerebro.broker.setcash(START_CASH)  # set initial fund
+    cerebro.broker.setcommission(commission=COMM_VALUE)  # set trad rate 0.2%
     stake = STAKE
-    cerebro.addsizer(bt.sizers.FixedSize, stake=stake)  # 设置买入数量
+    cerebro.addsizer(bt.sizers.FixedSize, stake=stake)  # set trade volume
     cerebro.addstrategy(MyStrategy)  # period = [(5, 10), (20, 100), (2, 10)]) , 运行策略
-    print('组合期初Cost: %.2f' % cerebro.broker.getvalue())
     cerebro.run(maxcpus=1)  # 运行回测系统
-    print('组合期末Cost: %.2f' % cerebro.broker.getvalue())
-    port_value = cerebro.broker.getvalue()  # 获取回测结束后的总资金
-    pnl = port_value - start_cash  # 盈亏统计
+
+    port_value = cerebro.broker.getvalue()  # trade over, get total fund
+    pnl = port_value - START_CASH  # figure out profit
     if pnl is None:
       stock_pnl.append(0)
     else:
         stock_pnl.append(pnl)
-    print(f"Total Cash: {round(port_value, 2)}")
+    print('Begin Fund: %.2f, Total Cash: %.2f' % (START_CASH, round(port_value, 2)))
     print(f"Net Profit: {round(pnl, 2)}\n\n")
     # cerebro.plot(style='candlestick')  # 画图
 
 
-# 对策略算出来的营收数据进行排序
+# sorted by strategy result
 def stock_rank():
     i = 0
     data_stock = []
@@ -256,7 +266,7 @@ def stock_rank():
     j = 0
     pnl = 0
     comm_cash = 0
-    reback_per = 0
+    rate_profit = 0
     while j < len(data_stock):
         # pnl = int(data_stock[j]['pnl']) + pnl
         if int(data_stock[j]['pnl']) > 0:  # 收益额为正的收益总额
@@ -264,8 +274,8 @@ def stock_rank():
             comm_cash = comm_cash + START_CASH
         print(f"{data_stock[j]}")
         j += 1
-    reback_per = pnl/comm_cash
-    print(f"截止到{datetime.date.today()}日的正向收益 total pnl: {pnl}, 收益率：{reback_per} \n")
+    rate_profit = round(pnl/comm_cash * 100, 2)
+    print(f"截止到{datetime.date.today()}日的正向profit total pnl: {pnl}, profit rate: {rate_profit}%\n")
 
 
 if __name__ == '__main__':
@@ -292,9 +302,9 @@ if __name__ == '__main__':
             else:
                 break
         it += 1
-    print(f"Test Date: {datetime.date.today()}")
-    print(f"Initial Cost: {START_CASH}\nPeriod：{startdate}:{enddate}")
     stock_rank()  # 列出优选对象
+    print(f"Test Date: {datetime.date.today()}")
+    print(f"Initial Fund: {START_CASH}\nPeriod：{startdate}~{enddate}")
     # set special operation in the special date
     it2 = 0
     code = ""
@@ -303,13 +313,13 @@ if __name__ == '__main__':
         code_value = get_sh_stock(special_info[it2]['code'])
         code_name = code_value.values[5][1]
         code = code_value.values[4][1]
-        print(f"\nSpecal opt is :{code_name}")
+        print(f"\n[Specal opt is :{code_name}]")
         print('%s, %s' % (datetime.date.strftime(special_info[it2]['date'], "%Y-%m-%d"), special_info[it2]['info']))
         if str(code)[0] == "6":
             code = "sh" + code
         else:
             code = "sz" + code
-        filepath = get_file(code)  # code neet sh or sz
+        filepath = get_file(code)  # code needs sh or sz
         df = get_consider(filepath)
         it2 += 1
 
