@@ -6,10 +6,14 @@ import backtrader as bt
 import akshare as ak
 import pandas as pd
 import matplotlib.pyplot as plt
+import numpy as np
 
-STAKE = 1500  # 每次买入的数量
-START_CASH = 150000  # 初始投资金额
-COMM_VALUE = 0.002   # 手续费率
+# const value
+STAKE = 1000  # volume once
+START_CASH = 150000  # initial cost
+COMM_VALUE = 0.002   # 费率
+
+# globle value
 stock_pnl = []  # 净利润
 stock_list = []  # 股票清单
 special_info = []  # 特别注意的事项
@@ -32,7 +36,7 @@ class MyStrategy(bt.Strategy):
         dt = dt or self.datas[0].datetime.date(0)
         print('%s, %s' % (dt.isoformat(), txt))
 
-    def is_specialday(self, specialdate, txt):
+    def is_special(self, specialdate, txt):
         #if datetime.datetime.strftime(specialdate, "%Y-%m-%d") == datetime.date.today():
         if datetime.datetime.strftime(specialdate, "%Y-%m-%d") == (datetime.datetime.now() + datetime.timedelta(days=-1)).strftime("%Y-%m-%d"):
             special_info.append({'date': self.datas[0].datetime.date(0),
@@ -96,9 +100,9 @@ class MyStrategy(bt.Strategy):
                 self.log('拒绝')
         self.order = None
         if self.crossover_buy:
-            self.is_specialday(self.datas[0].datetime.date(0), txt)
+            self.is_special(self.datas[0].datetime.date(0), txt)
         elif self.crossover_sell:
-            self.is_specialday(self.datas[0].datetime.date(0), txt)
+            self.is_special(self.datas[0].datetime.date(0), txt)
         self.crossover_buy = False
         self.crossover_sell = False
 
@@ -119,22 +123,24 @@ class MyStrategy(bt.Strategy):
             if self.crossover > 0:  # 如果金叉,valid=datetime.datetime.now() + datetime.timedelta(days=3)
                 self.log('当前可用资金: %.2f, 当前总资产: %.2f' % (self.cash_valid, self.valued))
                 self.order = self.buy()
-                self.is_specialday(self.datas[0].datetime.date(0), '不在场内，金叉,买入, 盘终价: %.2f' % self.data_close[0])
-                self.log('不在场内，金叉,买入, 盘终价: %.2f' % self.data_close[0])
+                self.is_special(self.datas[0].datetime.date(0), '不在场内，金叉,买入, 盘终价: %.2f，当前总资产：%.2f' %
+                                   (self.data_close[0], self.valued))
+                self.log('不在场内，金叉,买入, 盘终价: %.2f，当前总资产：%.2f' % (self.data_close[0], self.valued))
         else:
             if self.crossover > 0:
                 if (self.cash_valid - price * STAKE - self.buy_comm) > 0:
                     self.log('当前可用资金: %.2f, 当前总资产: %.2f' % (self.cash_valid, self.valued))
                     self.order = self.buy()
-                    self.is_specialday(self.datas[0].datetime.date(0), '不在场内，金叉,买入, 盘终价: %.2f' % self.data_close[0])
+                    self.is_special(self.datas[0].datetime.date(0), '不在场内，金叉,买入, 盘终价: %.2f，当前总资产：%.2f' %
+                                       (self.data_close[0], self.valued))
                     self.log('不在场内，金叉,买入, 盘终价: %.2f' % self.data_close[0])
             elif self.crossover < 0:  # 在场内，且死叉
                 if self.valued > START_CASH * 1.03:
                     self.order = self.close(size=size)
-                    self.is_specialday(self.datas[0].datetime.date(0),
-                                       '在场内，且死叉, 卖出，盘终价: %.2f，当前账户价值：%.2f' %
+                    self.is_special(self.datas[0].datetime.date(0),
+                                       '在场内，且死叉, 卖出，盘终价: %.2f，当前总资产：%.2f' %
                                        (self.data_close[0], self.valued))
-                    self.log('在场内，且死叉, 卖出，盘终价: %.2f，当前账户价值：%.2f' %
+                    self.log('在场内，且死叉, 卖出，盘终价: %.2f，当前总资产：%.2f' %
                              (self.data_close[0], self.valued))
 
 
@@ -150,7 +156,7 @@ def get_codes(file_name):
             file.close()
 
 
-def createFile(f_code):
+def get_file(f_code):
     basic_path = os.getcwd()
     code_file = str(basic_path + '\\' + f'{f_code}.csv')
     return code_file
@@ -173,7 +179,7 @@ def get_stocks():
 
 # 准备历史数据做预测评估
 def prepare_data(f_code, f_startdate, f_enddate):
-    csv_file = str(createFile(f_code))
+    csv_file = str(get_file(f_code))
     print("file的title信息：" + csv_file)
     get_sh_stock(f_code)
     file = open(csv_file, 'w', encoding='utf-8')
@@ -188,33 +194,52 @@ def prepare_data(f_code, f_startdate, f_enddate):
     return csv_file
 
 
+def get_consider(filepath):
+    df = pd.read_csv(filepath, parse_dates=True, index_col="date")
+    df.index = pd.to_datetime(df.index, format="%Y-%m-%d", utc=True)
+    it = 0
+    max_list = []
+    min_list = []
+    while it < len(df):
+        max_list.append(df['high'].values[it])
+        min_list.append(df['low'].values[it])
+        it += 1
+    max_median = np.median(max_list)
+    max_value = np.max(max_list)
+    min_median = np.median(min_list)
+    min_value = np.min(min_list)
+    # print(f"initial cost: {START_CASH} \nPeriod：{startdate}:{enddate}")
+    print('Max median value: %.2f, max value: %.2f' % (max_median, max_value))
+    print('Min median value: %.2f, min value: %.2f' % (min_median, min_value))
+    return df
+
+
 # 从指定文件中读取数据，并运行回测函数
 def run_strategy(f_startdate, f_enddate, f_file):
-    df = pd.read_csv(f_file, parse_dates=True, index_col="date")
-    df.index = pd.to_datetime(df.index, format="%Y-%m-%d", utc=True)
-    # 创建Cerebro引擎
-    cerebro = bt.Cerebro()  # 初始化回测系统
+    df = get_consider(f_file)
     from_date = datetime.datetime.strptime(f_startdate, "%Y%m%d")
     end_date = datetime.datetime.strptime(f_enddate, "%Y%m%d")
     data = bt.feeds.PandasData(dataname=df, fromdate=from_date, todate=end_date)  # 加载数据
+    # 创建Cerebro引擎
+    cerebro = bt.Cerebro()  # 初始化回测系统
     cerebro.adddata(data)  # 将数据传入回测系统
     start_cash = START_CASH
     cerebro.broker.setcash(start_cash)  # 设置初始资本
     cerebro.broker.setcommission(commission=COMM_VALUE)  # 设置交易手续费为 0.2%
     stake = STAKE
     cerebro.addsizer(bt.sizers.FixedSize, stake=stake)  # 设置买入数量
-    cerebro.addstrategy(MyStrategy)  # period = [(5, 10), (20, 100), (2, 10)])
-    print('组合期初资金: %.2f' % cerebro.broker.getvalue())
+    cerebro.addstrategy(MyStrategy)  # period = [(5, 10), (20, 100), (2, 10)]) , 运行策略
+    print('组合期初Cost: %.2f' % cerebro.broker.getvalue())
     cerebro.run(maxcpus=1)  # 运行回测系统
-    print('组合期末资金: %.2f' % cerebro.broker.getvalue())
+    print('组合期末Cost: %.2f' % cerebro.broker.getvalue())
     port_value = cerebro.broker.getvalue()  # 获取回测结束后的总资金
     pnl = port_value - start_cash  # 盈亏统计
     if pnl is None:
-        stock_pnl.append(0)
+      stock_pnl.append(0)
     else:
         stock_pnl.append(pnl)
-    print(f"总资金: {round(port_value, 2)}")
-    print(f"净收益: {round(pnl, 2)}\n\n")
+    print(f"Total Cash: {round(port_value, 2)}")
+    print(f"Net Profit: {round(pnl, 2)}\n\n")
     # cerebro.plot(style='candlestick')  # 画图
 
 
@@ -233,7 +258,7 @@ def stock_rank():
     comm_cash = 0
     reback_per = 0
     while j < len(data_stock):
-        #pnl = int(data_stock[j]['pnl']) + pnl
+        # pnl = int(data_stock[j]['pnl']) + pnl
         if int(data_stock[j]['pnl']) > 0:  # 收益额为正的收益总额
             pnl = int(data_stock[j]['pnl']) + pnl
             comm_cash = comm_cash + START_CASH
@@ -245,7 +270,7 @@ def stock_rank():
 
 if __name__ == '__main__':
     plt.switch_backend('agg')
-    plt.rcParams["font.sans-serif"] = ["SimHei"]  # 设置画图时的中文显示
+    plt.rcParams["font.sans-serif"] = ["SimHei"]  # set Chinese to draw picture
     plt.rcParams["axes.unicode_minus"] = False  # 设置画图时的负号显示
     codes = get_codes(get_stocks())
     startdate = str(codes[0]).replace('\n', '')  # 回测开始时间
@@ -260,21 +285,31 @@ if __name__ == '__main__':
             file_size = os.path.getsize(filepath)
             if file_size > 0:
                 code_value = get_sh_stock(code)
-                print(code_value)
+                # print(code_value)
+                print(f"code: {code_value.value[4]}, name：{code_value.value[5]}")
                 stock_list.append(code_value.value[5])
                 run_strategy(startdate, enddate, filepath)
             else:
                 break
         it += 1
-    print(f"预测日: {datetime.date.today()}")
-    print(f"初始资金: {START_CASH}\n回测期间：{startdate}:{enddate}")
+    print(f"Test Date: {datetime.date.today()}")
+    print(f"Initial Cost: {START_CASH}\nPeriod：{startdate}:{enddate}")
     stock_rank()  # 列出优选对象
-    # 列出关键交易日及关注信息
+    # set special operation in the special date
     it2 = 0
+    code = ""
+    code_name = ""
     while it2 < len(special_info):
         code_value = get_sh_stock(special_info[it2]['code'])
         code_name = code_value.values[5][1]
+        code = code_value.values[4][1]
         print(f"\nSpecal opt is :{code_name}")
         print('%s, %s' % (datetime.date.strftime(special_info[it2]['date'], "%Y-%m-%d"), special_info[it2]['info']))
+        if str(code)[0] == "6":
+            code = "sh" + code
+        else:
+            code = "sz" + code
+        filepath = get_file(code)  # code neet sh or sz
+        df = get_consider(filepath)
         it2 += 1
 
