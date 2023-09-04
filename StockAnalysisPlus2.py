@@ -9,9 +9,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # const value
-STAKE = 2500  # volume once
+STAKE = 1500  # volume once
 START_CASH = 150000  # initial cost
 COMM_VALUE = 0.002   # 费率
+WIN_ENV_FLAG = True  # 环境设置
+FILEDIR = "stocks"
 
 # globle value
 stock_pnl = []  # Net profit
@@ -151,10 +153,23 @@ class MyStrategy(bt.Strategy):
                              (self.data_close[0], self.valued))
 
 
+def get_work_path(pack_name):
+    if pack_name == "":
+        if WIN_ENV_FLAG:
+            return os.getcwd() + '\\'
+        else:
+            return os.getcwd() + '/'
+    else:
+        if WIN_ENV_FLAG:
+            return str(os.getcwd() + '\\' + pack_name + '\\').strip()
+        else:
+            return str(os.getcwd() + '/' + pack_name + '/').strip()
+
+
 def get_codes(file_name):
     file = None
     try:
-        path = os.getcwd() + '\\' + file_name
+        path = get_work_path("") + file_name
         print(path + '\n')
         file = open(path, 'r')
         return file.readlines()
@@ -164,8 +179,7 @@ def get_codes(file_name):
 
 
 def get_file(f_code):
-    basic_path = os.getcwd()
-    code_file = str(basic_path + '\\' + f'{f_code}.csv')
+    code_file = str(get_work_path(FILEDIR) + f'{f_code}.csv')
     return code_file
 
 
@@ -201,17 +215,19 @@ def prepare_data(f_code, f_startdate, f_enddate):
     return csv_file
 
 
-def get_consider(filepath):
-    df = pd.read_csv(filepath, parse_dates=True, index_col="date")
-    df.index = pd.to_datetime(df.index, format="%Y-%m-%d", utc=True)
+def get_consider(f_filepath):
+    file_path = f_filepath
+    sdf = None
+    sdf = pd.read_csv(file_path, parse_dates=True, index_col="date")
+    sdf.index = pd.to_datetime(sdf.index, format="%Y-%m-%d", utc=True)
     it = 0
     max_list = []
     min_list = []
     close_list = []
-    while it < len(df):
-        max_list.append(df['high'].values[it])
-        min_list.append(df['low'].values[it])
-        close_list.append(df['close'].values[it])
+    while it < len(sdf):
+        max_list.append(sdf['high'].values[it])
+        min_list.append(sdf['low'].values[it])
+        close_list.append(sdf['close'].values[it])
         it += 1
     max_median = np.median(max_list)
     max_value = np.max(max_list)
@@ -222,26 +238,23 @@ def get_consider(filepath):
     print('Max median value: %.2f, max value: %.2f' % (max_median, max_value))
     print('Min median value: %.2f, min value: %.2f' % (min_median, min_value))
     print('Close median value: %.2f' % close_median)
-    return df
+    return sdf
 
 
 # 从指定文件中读取数据，并运行回测函数
 def run_strategy(f_startdate, f_enddate, f_file):
-    df = get_consider(f_file)
+    sdf = get_consider(f_file)
     from_date = datetime.datetime.strptime(f_startdate, "%Y%m%d")
     end_date = datetime.datetime.strptime(f_enddate, "%Y%m%d")
-    data = bt.feeds.PandasData(dataname=df, fromdate=from_date, todate=end_date)  # 加载数据
+    data = bt.feeds.PandasData(dataname=sdf, fromdate=from_date, todate=end_date)  # 加载数据
     # 创建Cerebro引擎
     cerebro = bt.Cerebro()  # 初始化回测系统
     cerebro.adddata(data)  # 将数据传入回测系统
-    #start_cash = START_CASH
     cerebro.broker.setcash(START_CASH)  # set initial fund
     cerebro.broker.setcommission(commission=COMM_VALUE)  # set trad rate 0.2%
-    stake = STAKE
-    cerebro.addsizer(bt.sizers.FixedSize, stake=stake)  # set trade volume
+    cerebro.addsizer(bt.sizers.FixedSize, stake=STAKE)  # set trade volume
     cerebro.addstrategy(MyStrategy)  # period = [(5, 10), (20, 100), (2, 10)]) , 运行策略
     cerebro.run(maxcpus=1)  # 运行回测系统
-
     port_value = cerebro.broker.getvalue()  # trade over, get total fund
     pnl = port_value - START_CASH  # figure out profit
     if pnl is None:
@@ -304,7 +317,7 @@ if __name__ == '__main__':
         it += 1
     stock_rank()  # 列出优选对象
     print(f"Test Date: {datetime.date.today()}")
-    print(f"Initial Fund: {START_CASH}\nPeriod：{startdate}~{enddate}")
+    print(f"Initial Fund: {START_CASH}, Stack: {STAKE}\nPeriod：{startdate}~{enddate}")
     # set special operation in the special date
     it2 = 0
     code = ""
