@@ -142,12 +142,13 @@ class MyStrategy(bt.Strategy):
         else:
             if self.crossover > 0:
                 if (valid_cash - price * STAKE - buy_comm) > 0:
-                    self.log('Available Cash: %.2f, Total fund: %.2f' % (valid_cash, fund))
+                    self.log('Available Cash: %.2f, Total fund: %.2f, pos: %.2f' % (valid_cash, fund, size))
                     self.order = self.buy()
                     self.is_special(self.datas[0].datetime.date(0),
-                                    'Outside, golden cross buy, close: %.2f，Total fund：%.2f' %
-                                    (self.data_close[0], valid_cash))
-                    self.log('Outside, golden cross buy, close: %.2f' % self.data_close[0])
+                                    'Outside, golden cross buy, close: %.2f，Total fund：%.2f， pos: %.2f' %
+                                    (self.data_close[0], valid_cash, size))
+                    self.log('Outside, golden cross buy, close: %.2f，Total fund：%.2f， pos: %.2f' %
+                             (self.data_close[0], valid_cash, size))
             elif self.crossover < 0:  # Inside and dead cross
                 if fund > START_CASH * 1.03:
                     self.order = self.close(size=size)
