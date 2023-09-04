@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 
-WIN_ENV_FLAG = False
+WIN_ENV_FLAG = True
 FILEDIR = "stocks"
 STOCK_INFO_FILE = "text.txt"
 
@@ -63,10 +63,31 @@ def prepare_data(f_code, f_startdate, f_enddate):
     return csv_file
 
 
-def load_data(filepath):
-    df = pd.read_csv(filepath, parse_dates=True, index_col="date")
+def load_data(file_path):
+    df = pd.read_csv(file_path, parse_dates=True, index_col="date")
     df.index = pd.to_datetime(df.index, format="%Y-%m-%d", utc=True)
     return df
+
+
+#缺失值判断
+def pure_date(df):
+    print(f"df.info:{df.info()}")
+    iter = 0
+    while iter < len(df.columns):
+        tmp_dtype = df.dtypes[iter]
+        tmp_list = [float(i) for i in df.values[df.columns[iter]]]
+
+    print(f"check the datas, there is null:{df.isnull().sum()}")
+    # how = 'all', 只有当前行都是缺失值才删除
+    # how = 'any', 只要当前行有一个缺失值就删除
+    # df.drop(axis=0)  #axis=0 删除全是缺失值的行；axis=1，删除全是缺失值的列
+    #sorted_data = sorted(df, key=lambda x: x['close'])
+    #df = sorted(sorted_data, key=lambda x: x['date'])
+    print(f"check the datas, there is null:{df.isnull().sum()}")
+    print(df)
+
+
+
 
 '''
 wine = load_wine()
@@ -78,39 +99,45 @@ df = pd.DataFrame(data, columns=feaures)  # 原始数据
 
 
 # 第一步：无量纲化，数据归一化，min-max处理
-def standareData(df):
+def standard_data(df):
     """
     df : 原始数据
     return : data 标准化的数据
     """
     data = pd.DataFrame(index=df.index)  # 列名，一个新的dataframe
     columns = df.columns.tolist()  # 将列名提取出来
+    iter = 0
     for col in columns:
+        if col is None:
+            #data.columns[iter] = "NAN"
+            data.values[iter][0] = 'NAN'
         d = df[col]
         max = d.max()
         min = d.min()
         mean = d.mean()
         data[col] = ((d - mean) / (max - min)).tolist()
+        iter += 1
+    print(data)
     return data
 
 
 #  某一列当做参照序列，其他为对比序列
-def graOne(Data, m=0):
+def gra_one(f_data, m=0):
     """
     return:
     """
-    columns = Data.columns.tolist()  # 将列名提取出来
+    columns = f_data.columns.tolist()  # 将列名提取出来
     # 第一步：无量纲化
-    data = standareData(Data)
-    referenceSeq = data.iloc[:, m]  # 参考序列
+    data = standard_data(f_data)
+    reference_Seq = data.iloc[:, m]  # 参考序列
     data.drop(columns[m], axis=1, inplace=True)  # 删除参考列
-    compareSeq = data.iloc[:, 0:]  # 对比序列
-    row, col = compareSeq.shape
+    compare_Seq = data.iloc[:, 0:]  # 对比序列
+    row, col = compare_Seq.shape
     # 第二步：参考序列 - 对比序列
     data_sub = np.zeros([row, col])
     for i in range(col):
         for j in range(row):
-            data_sub[j, i] = abs(referenceSeq[j] - compareSeq.iloc[j, i])
+            data_sub[j, i] = abs(reference_Seq[j] - compare_Seq.iloc[j, i])
     # 找出最大值和最小值
     maxVal = np.max(data_sub)
     minVal = np.min(data_sub)
@@ -124,14 +151,14 @@ def graOne(Data, m=0):
     return pd.DataFrame(result)
 
 
-def GRA(Data):
-    df = Data.copy()
+def gra(data):
+    df = data.copy()
     columns = [str(s) for s in df.columns if s not in [None]]  # [1 2 ,,,12]
     # print(columns)
     df_local = pd.DataFrame(columns=columns)
     df.columns = columns
     for i in range(len(df.columns)):  # 每一列都做参照序列，求关联系数
-        df_local.iloc[:, i] = graOne(df, m=i)[0]
+        df_local.iloc[:, i] = gra_one(df, m=i)[0]
     df_local.index = columns
     return df_local
 
@@ -147,11 +174,7 @@ def ShowGRAHeatMap(DataFrame):
     mask[np.triu_indices_from(mask)] = True  # np.triu_indices 上三角矩阵
 
     with sns.axes_style("white"):
-        sns.heatmap(DataFrame,
-                    cmap="YlGnBu",
-                    annot=True,
-                    mask=mask,
-                    )
+        sns.heatmap(DataFrame, cmap="YlGnBu", annot=True, mask=mask,)
     plt.show()
 
 
@@ -168,5 +191,7 @@ if __name__ == '__main__':
             filepath = prepare_data(code, startdate, enddate)
         it += 1
     df = load_data(filepath)
-    data_stock_gra = GRA(df)
+    pure_date(df)
+    standard_data(df)
+    data_stock_gra = gra(df)
     ShowGRAHeatMap(data_stock_gra)
