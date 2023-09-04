@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-
+import datetime
 import os
 import akshare as ak
 import pandas as pd
@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 
-WIN_ENV_FLAG = True
+WIN_ENV_FLAG = False
 FILEDIR = "stocks"
 STOCK_INFO_FILE = "text.txt"
 
@@ -69,25 +69,35 @@ def load_data(file_path):
     return df
 
 
-#缺失值判断
+#数据转换为对应的类型，判断转换的数据是否存在缺失值，并进行删除
 def pure_date(df):
     print(f"df.info:{df.info()}")
+    '''
+    data = pd.DataFrame(index=df.index)
+    data.columns = df.columns
     iter = 0
     while iter < len(df.columns):
-        tmp_dtype = df.dtypes[iter]
-        tmp_list = [float(i) for i in df.values[df.columns[iter]]]
-
-    print(f"check the datas, there is null:{df.isnull().sum()}")
+        old_list = df.values[iter]
+        if df.columns[iter] == 'date':
+            new_typelist = list(map(datetime.date, old_list))
+            data.values['date'] = new_typelist
+        else:
+            new_typelist = list(map(float, old_list))
+            data.values[iter] = new_typelist
+        iter += 1
+'''
     # how = 'all', 只有当前行都是缺失值才删除
     # how = 'any', 只要当前行有一个缺失值就删除
-    # df.drop(axis=0)  #axis=0 删除全是缺失值的行；axis=1，删除全是缺失值的列
-    #sorted_data = sorted(df, key=lambda x: x['close'])
-    #df = sorted(sorted_data, key=lambda x: x['date'])
+    print(f"check the datas, there is null: \n {df.isnull().sum()}")
+    data = df.isnull().sum()
+    iter = 0
+    while iter < len(data.values):
+        if data.values[iter] > 0:
+            df.dropna(axis=0, how='any')  # axis=0 删除全是缺失值的行；axis=1，删除全是缺失值的列
+        iter += 1
+    print(data)
     print(f"check the datas, there is null:{df.isnull().sum()}")
-    print(df)
-
-
-
+    return df
 
 '''
 wine = load_wine()
@@ -106,18 +116,13 @@ def standard_data(df):
     """
     data = pd.DataFrame(index=df.index)  # 列名，一个新的dataframe
     columns = df.columns.tolist()  # 将列名提取出来
-    iter = 0
     for col in columns:
-        if col is None:
-            #data.columns[iter] = "NAN"
-            data.values[iter][0] = 'NAN'
         d = df[col]
         max = d.max()
         min = d.min()
         mean = d.mean()
         data[col] = ((d - mean) / (max - min)).tolist()
-        iter += 1
-    print(data)
+    #print(data)
     return data
 
 
