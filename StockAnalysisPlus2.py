@@ -12,7 +12,7 @@ import numpy as np
 STAKE = 1500  # volume once
 START_CASH = 150000  # initial cost
 COMM_VALUE = 0.002   # 费率
-WIN_ENV_FLAG = True  # windows环境设置
+WIN_ENV_FLAG = False  # windows环境设置
 FILEDIR = "stocks"
 
 # globle value
@@ -42,7 +42,6 @@ class MyStock:
         self.turnover = 0
 
     def getcodebytype(self, code, ctype='Numberal'):  # ctype='Numeral', 600202; ctype='String' sh600202
-        s_code = ""
         num_code_type = False
         if len(code) == 6:
             num_code_type = True
@@ -52,7 +51,7 @@ class MyStock:
                 s_code = "sz" + code
         else:
             s_code = code
-        if ctype == 'Numeral':
+        if ctype == 'Numberal':
             if num_code_type:
                 return code
             else:
@@ -68,8 +67,9 @@ class MyStock:
         return df
 
     def get_stock_by_date(self, s_code, s_date):
-        sdf = ak.stock_individual_info_em(symbol=s_code[2:])  # code begin with numeral
-        self.name = sdf.values[5]
+        code = self.getcodebytype(s_code, ctype='Numberal')
+        sdf = ak.stock_individual_info_em(symbol=code)  # code begin with numeral
+        self.name = sdf.values[5][1]
         self.code = s_code
         df = self.get_df(s_code)
         i = 0
@@ -88,10 +88,12 @@ class MyStock:
                 stock_info = {'date': self.date, 'open': self.open, 'close': self.close, 'high': self.high,
                               'low': self.low, 'volume': self.volume, 'outstanding_share': self.outstanding_share,
                               'turnover': self.turnover}
+                '''
                 self.log('Stock: %s, code: %s, date: %s, open: %.2f, close: %.2f, high: %.2f, low: %.2f, volume: %.2f, \
                  outstanding_share: %.2f, turnover: %.2f' % (self.name, self.code, self.date, self.open, self.close,
                                                              self.high, self.low, self.volume, self.outstanding_share,
-                                                             self.turnover))
+                                                             self.turnover)) 
+                '''
                 break
             i += 1
         return stock_info
@@ -114,48 +116,23 @@ class MyStrategy(bt.Strategy):
         print('%s, %s' % (dt.isoformat(), txt))
 
     def is_special(self, special_date, txt):
-        my_stock = MyStock()
         operator = ""
-        consider_date = ""
         if txt.lower().find('buy') > 0:
             operator = 'BUY'
         elif txt.lower().find('sell') > 0:
             operator = 'SELL'
-        yesterday_spe = (datetime.datetime.now() + datetime.timedelta(days=-1)).strftime("%Y-%m-%d")
-        # check the date before cross date
-        before_yesterday = (datetime.datetime.now() + datetime.timedelta(days=-2)).strftime("%Y-%m-%d")
-        history_date = [yesterday_spe, before_yesterday]
-        i = 0
-        while i < len(history_date):
-            temp_date = int(datetime.datetime.strptime(history_date[i], "%Y-%m-%d").weekday())
-            if temp_date > 5:
-                consider_date = (datetime.datetime.strptime(history_date[i], "%Y-%m-%d") +
-                                 datetime.timedelta(days=-3)).strftime("%Y-%m-%d")
-                history_date[i] = consider_date
-            i += 1
-
-        if datetime.datetime.strftime(special_date, "%Y-%m-%d") == history_date[0]:
-            special_info.append({'date': consider_date,
+        today = datetime.datetime.now().strftime("%Y-%m-%d")
+        yesterday_spe = get_business_day(today, days=-1)
+        if datetime.datetime.strftime(special_date, "%Y-%m-%d") == yesterday_spe:
+            special_info.append({'date': yesterday_spe,
                                  'code': special_code,
                                  'info': txt,
                                  'operator': operator})
-            stock_info = my_stock.get_stock_by_date(special_code, history_date[1])
-            if operator == 'BUY':
-                txt = 'Before golden cross and BUY operation, \nstock info: ' \
-                      'open: %.2f, close: %.2f, high: %.2f, low: %.2f' % \
-                      (stock_info['open'], stock_info['close'], stock_info['high'], stock_info['low'])
-                special_info.append({'date': history_date[1],
-                                     'code': special_code,
-                                     'info': txt,
-                                     'operator': operator})
-            elif operator == 'SELL':
-                txt = 'Before dead cross and SELL operation, \nstock info: \n' \
-                      'open: %.2f, close: %.2f, high: %.2f, low: %.2f' % \
-                      (stock_info['open'], stock_info['close'], stock_info['high'], stock_info['low'])
-                special_info.append({'date': history_date[1],
-                                     'code': special_code,
-                                     'info': txt,
-                                     'operator': operator})
+        elif datetime.datetime.strftime(special_date, "%Y-%m-%d") == today:
+            special_info.append({'date': today,
+                                 'code': special_code,
+                                 'info': txt,
+                                 'operator': operator})
 
     # 初始化函数，初始化属性、指标的计算，only once time
     def __init__(self):
@@ -183,29 +160,21 @@ class MyStrategy(bt.Strategy):
             return
         # 检查订单是否完成
         if order.status in [order.Completed]:
+            price = order.executed.price
+            comm = order.executed.comm
+            cost = order.executed.value
+            pos = self.getposition(self.data).size
+            fund = self.broker.getvalue()
             if order.isbuy():
                 self.crossover_buy = True
-                self.buy_price = order.executed.price
-                self.buy_comm = order.executed.comm
-                self.pos = self.getposition(self.data).size
-                self.buy_cost = order.executed.value
-                self.valued = self.broker.getvalue()
                 txt = 'BUY EXECUTED, Price: %.2f, Cost: %.2f, Comm %.2f, fund Value %.2f, pos Size %.2f' % \
-                      (order.executed.price,
-                        order.executed.value,
-                        order.executed.comm,
-                        self.valued,
-                        self.pos)
+                      (price, cost, comm, fund, pos)
                 self.log(txt)
             elif order.issell():
                 self.crossover_sell = True
                 self.pos = self.getposition(self.data).size
                 txt = 'SELL EXECUTED, Price: %.2f, Cost: %.2f, Comm %.2f, fund Value %.2f, pos Size %.2f' % \
-                      (order.executed.price,
-                          order.executed.value,
-                          order.executed.comm,
-                          self.valued,
-                          self.pos)
+                      (price, cost, comm, fund, pos)
                 self.log(txt)
         elif order.status in [order.Canceled, order.Margin, order.Rejected]:
             if order.status == order.Canceled:
@@ -311,6 +280,33 @@ def getcodebytype(code, ctype='Numberal'):  # ctype='Numeral', 600202; ctype='St
             return code[2:]
     else:
         return s_code
+
+
+# calculate the business date before one date, if the date is weekend, the get the nearest business date before
+# days=-1: yesterday, days=-2: the day before yesterday
+# return date string type
+def get_business_day(s_date, days=-1):
+    before_date = "1900-01-01"
+    d_days = 0
+    #s_date = '2023-09-04'
+    week_days = int(datetime.datetime.strptime(s_date, "%Y-%m-%d").weekday())
+    if days is None:
+        d_days = 0
+    else:
+        d_days = days
+    if week_days == 0:
+        d_days = d_days - 2
+        before_date = (datetime.datetime.strptime(s_date, "%Y-%m-%d") +
+                       datetime.timedelta(d_days)).strftime("%Y-%m-%d")
+    elif week_days == 6:
+        d_days = d_days - 1
+        before_date = (datetime.datetime.strptime(s_date, "%Y-%m-%d") +
+                       datetime.timedelta(d_days)).strftime("%Y-%m-%d")
+    else:
+        d_days = d_days
+        before_date = (datetime.datetime.strptime(s_date, "%Y-%m-%d") +
+                       datetime.timedelta(d_days)).strftime("%Y-%m-%d")
+    return before_date
 
 
 def get_sh_stock(s_code):   # stock code mustbe begin with numeral
@@ -458,14 +454,22 @@ if __name__ == '__main__':
     it2 = 0
     code = ""
     code_name = ""
+    my_stock = MyStock()
     while it2 < len(special_info):
         code_value = get_sh_stock(special_info[it2]['code'])   #  code include sh
         code_name = code_value.values[5][1]
         code = code_value.values[4][1]
+        s_date = special_info[it2]['date']
+        b4_s_date = get_business_day(s_date, days=-1)
+        b4_s_date_info = my_stock.get_stock_by_date(code, b4_s_date)
         print(f"\n[Specal opt is :{code_name}]")
-        print('%s, %s' % (special_info[it2]['date'], special_info[it2]['info']))
+        print('%s, %s' % (s_date, special_info[it2]['info']))
+        print(f"{b4_s_date}, open: {b4_s_date_info['open']}, close: {b4_s_date_info['close']}, "
+              f"high: {b4_s_date_info['high']}, low: {b4_s_date_info['low']}")
         s_code = getcodebytype(code, ctype='String')
         filepath = get_file(s_code)  # code needs sh or sz
         df = get_consider(filepath)
         it2 += 1
+
+
 
