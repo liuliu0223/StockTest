@@ -12,7 +12,7 @@ import numpy as np
 STAKE = 1500  # volume once
 START_CASH = 150000  # initial cost
 COMM_VALUE = 0.002   # 费率
-WIN_ENV_FLAG = True  # 环境设置
+WIN_ENV_FLAG = True  # windows环境设置
 FILEDIR = "stocks"
 
 # globle value
@@ -20,6 +20,81 @@ stock_pnl = []  # Net profit
 stock_list = []  # stock list
 special_info = []  # 特别注意的事项
 special_code = ""
+
+
+class MyStock:
+    # 通用日志打印函数，可以打印下单、交易记录，非必须，可选
+    def log(self, txt, dt=None):
+        s_date = datetime.datetime.now().strftime("%Y-%m-%d")
+        print('%s , %s' % (s_date, txt))
+
+    # 初始化函数，初始化属性、指标的计算，only once time
+    def __init__(self):
+        self.code = ""  # stock code
+        self.name = ""  # stock name
+        self.date = '1900-01-01'
+        self.open = 0.0
+        self.close = 0.0
+        self.high = 0.0
+        self.low = 0.0
+        self.volume = 0.0
+        self.outstanding_share = 0
+        self.turnover = 0
+
+    def getcodebytype(self, code, ctype='Numberal'):  # ctype='Numeral', 600202; ctype='String' sh600202
+        s_code = ""
+        num_code_type = False
+        if len(code) == 6:
+            num_code_type = True
+            if "6" == code[:1]:
+                s_code = "sh" + code
+            else:
+                s_code = "sz" + code
+        else:
+            s_code = code
+        if ctype == 'Numeral':
+            if num_code_type:
+                return code
+            else:
+                return code[2:]
+        else:
+            return s_code
+
+    def get_df(self, code):
+        s_code = self.getcodebytype(code, ctype='String')
+        file_path = get_file(s_code)
+        df = pd.read_csv(file_path, parse_dates=True, index_col='date')
+        df.index = pd.to_datetime(df.index, format='%Y-%m-%d', utc=True)
+        return df
+
+    def get_stock_by_date(self, s_code, s_date):
+        sdf = ak.stock_individual_info_em(symbol=s_code[2:])  # code begin with numeral
+        self.name = sdf.values[5]
+        self.code = s_code
+        df = self.get_df(s_code)
+        i = 0
+        stock_info = None
+        while i < len(df):
+            t_date = df['open'].index[i]
+            if datetime.datetime.strftime(t_date, "%Y-%m-%d") == s_date:
+                self.date = s_date
+                self.open = df['open'].values[i]
+                self.close = df['close'].values[i]
+                self.high = df['high'].values[i]
+                self.low = df['low'].values[i]
+                self.volume = df['volume'].values[i]
+                self.outstanding_share = df['outstanding_share'].values[i]
+                self.turnover = df['turnover'].values[i]
+                stock_info = {'date': self.date, 'open': self.open, 'close': self.close, 'high': self.high,
+                              'low': self.low, 'volume': self.volume, 'outstanding_share': self.outstanding_share,
+                              'turnover': self.turnover}
+                self.log('Stock: %s, code: %s, date: %s, open: %.2f, close: %.2f, high: %.2f, low: %.2f, volume: %.2f, \
+                 outstanding_share: %.2f, turnover: %.2f' % (self.name, self.code, self.date, self.open, self.close,
+                                                             self.high, self.low, self.volume, self.outstanding_share,
+                                                             self.turnover))
+                break
+            i += 1
+        return stock_info
 
 
 class MyStrategy(bt.Strategy):
@@ -39,16 +114,48 @@ class MyStrategy(bt.Strategy):
         print('%s, %s' % (dt.isoformat(), txt))
 
     def is_special(self, special_date, txt):
-        t_days = -1
-        yesterday_spe = (datetime.datetime.now() + datetime.timedelta(days=t_days)).strftime("%Y-%m-%d")
-        temp_date = int(datetime.datetime.strptime(yesterday_spe, "%Y-%m-%d").weekday())
-        if temp_date > 5:
-            t_days = -3
-            yesterday_spe = (datetime.datetime.now() + datetime.timedelta(days=t_days)).strftime("%Y-%m-%d")
-        if datetime.datetime.strftime(special_date, "%Y-%m-%d") == yesterday_spe:
-            special_info.append({'date': self.datas[0].datetime.date(0),
+        my_stock = MyStock()
+        operator = ""
+        consider_date = ""
+        if txt.lower().find('buy') > 0:
+            operator = 'BUY'
+        elif txt.lower().find('sell') > 0:
+            operator = 'SELL'
+        yesterday_spe = (datetime.datetime.now() + datetime.timedelta(days=-1)).strftime("%Y-%m-%d")
+        # check the date before cross date
+        before_yesterday = (datetime.datetime.now() + datetime.timedelta(days=-2)).strftime("%Y-%m-%d")
+        history_date = [yesterday_spe, before_yesterday]
+        i = 0
+        while i < len(history_date):
+            temp_date = int(datetime.datetime.strptime(history_date[i], "%Y-%m-%d").weekday())
+            if temp_date > 5:
+                consider_date = (datetime.datetime.strptime(history_date[i], "%Y-%m-%d") +
+                                 datetime.timedelta(days=-3)).strftime("%Y-%m-%d")
+                history_date[i] = consider_date
+            i += 1
+
+        if datetime.datetime.strftime(special_date, "%Y-%m-%d") == history_date[0]:
+            special_info.append({'date': consider_date,
                                  'code': special_code,
-                                 'info': txt})
+                                 'info': txt,
+                                 'operator': operator})
+            stock_info = my_stock.get_stock_by_date(special_code, history_date[1])
+            if operator == 'BUY':
+                txt = 'Before golden cross and BUY operation, \nstock info: ' \
+                      'open: %.2f, close: %.2f, high: %.2f, low: %.2f' % \
+                      (stock_info['open'], stock_info['close'], stock_info['high'], stock_info['low'])
+                special_info.append({'date': history_date[1],
+                                     'code': special_code,
+                                     'info': txt,
+                                     'operator': operator})
+            elif operator == 'SELL':
+                txt = 'Before dead cross and SELL operation, \nstock info: \n' \
+                      'open: %.2f, close: %.2f, high: %.2f, low: %.2f' % \
+                      (stock_info['open'], stock_info['close'], stock_info['high'], stock_info['low'])
+                special_info.append({'date': history_date[1],
+                                     'code': special_code,
+                                     'info': txt,
+                                     'operator': operator})
 
     # 初始化函数，初始化属性、指标的计算，only once time
     def __init__(self):
@@ -68,9 +175,6 @@ class MyStrategy(bt.Strategy):
         self.crossover = bt.ind.CrossOver(self.sma1, self.sma2)  # crossover signal
         self.crossover_buy = False
         self.crossover_sell = False
-        self.cross_list = []  # judge the date before golden cross and date after dead cross
-        #self.cross_1 = bt.ind.CrossUp(self.crossover)
-        #self.cross_2 = bt.ind.CrossUp(self.sma2)
 
     # order statement information
     def notify_order(self, order):
@@ -132,7 +236,7 @@ class MyStrategy(bt.Strategy):
         buy_comm = price * size * COMM_VALUE
         if not self.position:  # Outside, buy
             if self.crossover > 0:  # if golden cross, valid=datetime.datetime.now() + datetime.timedelta(days=3)
-                self.log('Available Cash: %.2f, Total fund: %.2f' % (valid_cash, fund))
+                self.log('Available Cash: %.2f, Total fund: %.2f, pos: %.2f' % (valid_cash, fund, size))
                 self.order = self.buy()
                 txt = 'Outside, golden cross buy, close: %.2f，Total fund：%.2f, pos: %.0f' % \
                       (self.data_close[0], fund, size)
@@ -153,7 +257,7 @@ class MyStrategy(bt.Strategy):
                 if fund > START_CASH * 1.03:
                     self.order = self.close(size=size)
                     self.is_special(self.datas[0].datetime.date(0),
-                                    'Inside dead cross, sell, close: %.2f，Total fund：%.2f, pos: %.2f' %
+                                    'Inside dead cross, sell, close: %.2f，Total fundda：%.2f, pos: %.2f' %
                                     (self.data_close[0], fund, size))
                     self.log('Inside dead cross, sell, close:  %.2f，Total fund：%.2f, pos: %.2f' %
                              (self.data_close[0], fund, size))
@@ -189,9 +293,29 @@ def get_file(f_code):
     return code_file
 
 
-def get_sh_stock(s_code):
-    s_code = s_code[2:]
-    df = ak.stock_individual_info_em(symbol=s_code)
+def getcodebytype(code, ctype='Numberal'):  # ctype='Numeral', 600202; ctype='String' sh600202
+    s_code = ""
+    num_code_type = False
+    if len(code) == 6:
+        num_code_type = True
+        if "6" == code[:1]:
+            s_code = "sh" + code
+        else:
+            s_code = "sz" + code
+    else:
+        s_code = code
+    if ctype == 'Numberal':
+        if num_code_type:
+            return code
+        else:
+            return code[2:]
+    else:
+        return s_code
+
+
+def get_sh_stock(s_code):   # stock code mustbe begin with numeral
+    code = getcodebytype(s_code, ctype='Numberal')
+    df = ak.stock_individual_info_em(symbol=code)
     return df
 
 
@@ -208,11 +332,11 @@ def get_stocks():
 def prepare_data(f_code, f_startdate, f_enddate):
     csv_file = str(get_file(f_code))
     print("file的title信息：" + csv_file)
-    get_sh_stock(f_code)
+    get_sh_stock(f_code)  # 去掉代码前缀 sh or sz
     file = open(csv_file, 'w', encoding='utf-8')
     # 默认返回不复权的数据; qfq: 返回前复权后的数据; hfq: 返回后复权后的数据; hfq-factor: 返回后复权因子; qfq-factor: 返回前复权因子
     stock_hfq_df = ak.stock_zh_a_daily(symbol=f_code, start_date=f_startdate, end_date=f_enddate,
-                                       adjust="qfq")  # 接口参数格式 股票代码必须含有sh或zz的前缀
+                                       adjust="qfq")  # 接口参数格式 股票代码必须含有sh或sz的前缀
     if stock_hfq_df is None:
         print("Warning, run_strategy: stock_hfq_df is None!")
     else:
@@ -223,8 +347,7 @@ def prepare_data(f_code, f_startdate, f_enddate):
 
 def get_consider(f_filepath):
     file_path = f_filepath
-    sdf = None
-    sdf = pd.read_csv(file_path, parse_dates=True, index_col="date")
+    sdf = pd.read_csv(file_path, parse_dates=True, index_col='date')
     sdf.index = pd.to_datetime(sdf.index, format="%Y-%m-%d", utc=True)
     it = 0
     max_list = []
@@ -336,16 +459,13 @@ if __name__ == '__main__':
     code = ""
     code_name = ""
     while it2 < len(special_info):
-        code_value = get_sh_stock(special_info[it2]['code'])
+        code_value = get_sh_stock(special_info[it2]['code'])   #  code include sh
         code_name = code_value.values[5][1]
         code = code_value.values[4][1]
         print(f"\n[Specal opt is :{code_name}]")
-        print('%s, %s' % (datetime.date.strftime(special_info[it2]['date'], "%Y-%m-%d"), special_info[it2]['info']))
-        if str(code)[0] == "6":
-            code = "sh" + code
-        else:
-            code = "sz" + code
-        filepath = get_file(code)  # code needs sh or sz
+        print('%s, %s' % (special_info[it2]['date'], special_info[it2]['info']))
+        s_code = getcodebytype(code, ctype='String')
+        filepath = get_file(s_code)  # code needs sh or sz
         df = get_consider(filepath)
         it2 += 1
 
