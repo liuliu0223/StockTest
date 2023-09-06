@@ -12,7 +12,7 @@ import numpy as np
 STAKE = 1500  # volume once
 START_CASH = 150000  # initial cost
 COMM_VALUE = 0.002   # 费率
-WIN_ENV_FLAG = False  # windows环境设置
+WIN_ENV_FLAG = True  # windows环境设置
 FILEDIR = "stocks"
 
 # globle value
@@ -25,8 +25,8 @@ special_code = ""
 class MyStock:
     # 通用日志打印函数，可以打印下单、交易记录，非必须，可选
     def log(self, txt, dt=None):
-        s_date = datetime.datetime.now().strftime("%Y-%m-%d")
-        print('%s , %s' % (s_date, txt))
+        dt = dt or self.date
+        print('MyStock：%s , %s' % (dt.isoformat(), txt))
 
     # 初始化函数，初始化属性、指标的计算，only once time
     def __init__(self):
@@ -262,24 +262,33 @@ def get_file(f_code):
     return code_file
 
 
-def getcodebytype(code, ctype='Numberal'):  # ctype='Numeral', 600202; ctype='String' sh600202
-    s_code = ""
+# This is to get the stock code style
+# function: getcodebytype
+# input:
+#     code(String)
+#     ctype(String):ctype='Numeral', means returen string begin with numberal, such as 600202;
+#                   ctype='String' , means return string with character, such as sh600202;
+#                   ctype=None, means return string with character, such as sh600202
+# return: stock code (string)
+#
+#
+def getcodebytype(code, ctype='Numberal'):
+    s_code = code
     num_code_type = False
     if len(code) == 6:
         num_code_type = True
-        if "6" == code[:1]:
-            s_code = "sh" + code
-        else:
-            s_code = "sz" + code
-    else:
-        s_code = code
     if ctype == 'Numberal':
         if num_code_type:
-            return code
+            return s_code
         else:
-            return code[2:]
+            return s_code[2:]
     else:
-        return s_code
+        if num_code_type:
+            if "6" == code[:1]:
+                s_code = "sh" + code
+            else:
+                s_code = "sz" + code
+    return s_code
 
 
 # calculate the business date before one date, if the date is weekend, the get the nearest business date before
