@@ -7,24 +7,29 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+import torch
+from torch.backends import cudnn
 
 
-WIN_ENV_FLAG = False
+WIN_ENV_FLAG = True
 FILEDIR = "stocks"
 STOCK_INFO_FILE = "text.txt"
+cudnn.benchmark = True
 
 
 def get_work_path(pack_name):
+    current_path = os.getcwd()
+    parent_dir = os.path.dirname(current_path)
     if pack_name == "":
         if WIN_ENV_FLAG:
-            return os.getcwd() + '\\'
+            return parent_dir + "\\"
         else:
-            return os.getcwd() + '/'
+            return parent_dir + "/"
     else:
         if WIN_ENV_FLAG:
-            return str(os.getcwd() + '\\' + pack_name + '\\').strip()
+            return str(parent_dir + '\\' + pack_name + '\\').strip()
         else:
-            return str(os.getcwd() + '/' + pack_name + '/').strip()
+            return str(parent_dir + '/' + pack_name + '/').strip()
 
 
 def get_codes(name):
@@ -39,10 +44,46 @@ def get_codes(name):
             file.close()
 
 
+# This is to get the stock code style
+# function: getcodebytype
+# input:
+#     code(String)
+#     ctype(String):ctype='Numeral', means returen string begin with numberal, such as 600202;
+#                   ctype='String' , means return string with character, such as sh600202;
+#                   ctype=None, means return string with character, such as sh600202
+# return: stock code (string)
+#
+#
+def getcodebytype(code, ctype):
+    s_code = code
+    num_code_type = False
+    if len(code) == 6:
+        num_code_type = True
+    if ctype is None:
+        if num_code_type:
+            if "6" == code[:1]:
+                s_code = "sh" + code
+            else:
+                s_code = "sz" + code
+    elif ctype == 'Numberal':
+        if num_code_type:
+            return s_code
+        else:
+            return s_code[2:]
+
+    else:
+        if num_code_type:
+            if "6" == code[:1]:
+                s_code = "sh" + code
+            else:
+                s_code = "sz" + code
+    return s_code
+
+
 # 转换文件中的代码信息，查找对应代码的内容
-def get_sh_stock(s_code):
-    s_code = s_code[2:]
-    df = ak.stock_individual_info_em(symbol=s_code)
+def get_sh_stock(s_code):   # stock code mustbe begin with numeral
+    code = getcodebytype(s_code, ctype='Numberal')
+    df = ak.stock_individual_info_em(symbol=code)
     return df
 
 
@@ -69,43 +110,44 @@ def load_data(file_path):
     return df
 
 
-#数据转换为对应的类型，判断转换的数据是否存在缺失值，并进行删除
-def pure_date(df):
-    print(f"df.info:{df.info()}")
-    '''
-    data = pd.DataFrame(index=df.index)
-    data.columns = df.columns
-    iter = 0
-    while iter < len(df.columns):
-        old_list = df.values[iter]
-        if df.columns[iter] == 'date':
-            new_typelist = list(map(datetime.date, old_list))
-            data.values['date'] = new_typelist
+# 数据转换为对应的类型，判断转换的数据是否存在缺失值，并进行删除
+def pure_data(df, column_name):
+    drop_column = None
+    if column_name is not None:
+        drop_column = column_name
+
+    if df is None:
+        return 0
+    list_columns = df.columns
+    it = 0
+    while it < len(list_columns):
+        #if list_columns[it] == 'Unnamed: 0':
+        if drop_column is None:
+            break
         else:
-            new_typelist = list(map(float, old_list))
-            data.values[iter] = new_typelist
-        iter += 1
-'''
+            if list_columns[it] == drop_column:
+                df = df.drop(list_columns[it], axis=1)
+        it += 1
+#    print(f"df.info:{df.info()}")
     # how = 'all', 只有当前行都是缺失值才删除
     # how = 'any', 只要当前行有一个缺失值就删除
-    print(f"check the datas, there is null: \n {df.isnull().sum()}")
+    print(f"pure_data: check the datas, there is null: \n {df.isnull().sum()}")
     data = df.isnull().sum()
     iter = 0
     while iter < len(data.values):
         if data.values[iter] > 0:
             df.dropna(axis=0, how='any')  # axis=0 删除全是缺失值的行；axis=1，删除全是缺失值的列
         iter += 1
-    print(data)
-    print(f"check the datas, there is null:{df.isnull().sum()}")
+    print(f"pure_data: Deleted null : \n {data}")
+    # change the type of data, read from csv
+    df['open'] = pd.to_numeric(df['open'], downcast='float')
+    df['close'] = pd.to_numeric(df['close'], downcast='float')
+    df['high'] = pd.to_numeric(df['high'], downcast='float')
+    df['low'] = pd.to_numeric(df['low'], downcast='float')
+    df['volume'] = pd.to_numeric(df['volume'], downcast='float')
+    df['outstanding_share'] = pd.to_numeric(df['outstanding_share'], downcast='float')
+    df['turnover'] = pd.to_numeric(df['turnover'], downcast='float')
     return df
-
-'''
-wine = load_wine()
-data = wine.data  # 数据
-lables = wine.target  # 标签
-feaures = wine.feature_names
-df = pd.DataFrame(data, columns=feaures)  # 原始数据
-'''
 
 
 # 第一步：无量纲化，数据归一化，min-max处理
@@ -114,15 +156,17 @@ def standard_data(df):
     df : 原始数据
     return : data 标准化的数据
     """
-    data = pd.DataFrame(index=df.index)  # 列名，一个新的dataframe
-    columns = df.columns.tolist()  # 将列名提取出来
+    p_df = pure_data(df, 'Unnamed: 0')
+    data = pd.DataFrame(index=p_df.index)  # 列名，一个新的dataframe
+    columns = p_df.columns.tolist()  # 将列名提取出来
     for col in columns:
-        d = df[col]
+        if col == 'date':
+            break
+        d = p_df[col]
         max = d.max()
         min = d.min()
         mean = d.mean()
         data[col] = ((d - mean) / (max - min)).tolist()
-    #print(data)
     return data
 
 
@@ -159,7 +203,7 @@ def gra_one(f_data, m=0):
 def gra(data):
     df = data.copy()
     columns = [str(s) for s in df.columns if s not in [None]]  # [1 2 ,,,12]
-    # print(columns)
+    print(f"gra: columns: {columns}")
     df_local = pd.DataFrame(columns=columns)
     df.columns = columns
     for i in range(len(df.columns)):  # 每一列都做参照序列，求关联系数
@@ -170,16 +214,13 @@ def gra(data):
 
 # 热力图展示
 def ShowGRAHeatMap(DataFrame):
-    # colormap = plt.cm.hsv
-    # ylabels = DataFrame.columns.values.tolist()
     f, ax = plt.subplots(figsize=(15, 15))
     ax.set_title('STOCK GRA')
     # 设置展示一半，如果不需要注释掉mask即可
-    mask = np.zeros_like(DataFrame)
-    mask[np.triu_indices_from(mask)] = True  # np.triu_indices 上三角矩阵
-
-    with sns.axes_style("white"):
-        sns.heatmap(DataFrame, cmap="YlGnBu", annot=True, mask=mask,)
+    # mask = np.zeros_like(DataFrame)
+    # mask[np.triu_indices_from(mask)] = True  # np.triu_indices 上三角矩阵
+    list_columns = DataFrame.columns
+    sns.heatmap(DataFrame[list_columns].corr(), cmap="YlGnBu", annot=True, fmt=".2f")
     plt.show()
 
 
@@ -196,7 +237,7 @@ if __name__ == '__main__':
             filepath = prepare_data(code, startdate, enddate)
         it += 1
     df = load_data(filepath)
-    pure_date(df)
+    p_df = pure_data(df, 'Unnamed: 0')
     standard_data(df)
-    data_stock_gra = gra(df)
-    ShowGRAHeatMap(data_stock_gra)
+    data_stock_gra = gra(p_df)
+    ShowGRAHeatMap(p_df)
