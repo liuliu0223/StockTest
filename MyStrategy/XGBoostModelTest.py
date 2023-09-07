@@ -12,8 +12,8 @@ def xgb_train(df):
     test_size = len(data_set_process) - train_size
     train_XGB, test_XGB = scaled_data[0:train_size,:], scaled_data[train_size:len(data_set_process),:]
 
-    train_XGB_X, train_XGB_Y = train_XGB[:,:(len(data_set_process.columns)-1)],train_XGB[:,(len(data_set_process.columns)-1)]
-    test_XGB_X, test_XGB_Y = test_XGB[:,:(len(data_set_process.columns)-1)],test_XGB[:,(len(data_set_process.columns)-1)]
+    train_XGB_X, train_XGB_Y = train_XGB[:, :(len(data_set_process.columns)-1)], train_XGB[:,(len(data_set_process.columns)-1)]
+    test_XGB_X, test_XGB_Y = test_XGB[:, :(len(data_set_process.columns)-1)], test_XGB[:,(len(data_set_process.columns)-1)]
 
     # 算法参数
     params = {
