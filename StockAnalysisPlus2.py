@@ -266,18 +266,18 @@ def get_file(f_code):
 # function: getcodebytype
 # input:
 #     code(String)
-#     ctype(String):ctype='Numeral', means returen string begin with numberal, such as 600202;
+#     ctype(String):ctype='Numeral', means return string begin with Numeral, such as 600202;
 #                   ctype='String' , means return string with character, such as sh600202;
 #                   ctype=None, means return string with character, such as sh600202
 # return: stock code (string)
 #
 #
-def getcodebytype(code, ctype='Numberal'):
+def getcodebytype(code, ctype='Numeral'):
     s_code = code
     num_code_type = False
     if len(code) == 6:
         num_code_type = True
-    if ctype == 'Numberal':
+    if ctype == 'Numeral':
         if num_code_type:
             return s_code
         else:
@@ -318,8 +318,8 @@ def get_business_day(s_date, days=-1):
     return before_date
 
 
-def get_sh_stock(s_code):   # stock code mustbe begin with numeral
-    code = getcodebytype(s_code, ctype='Numberal')
+def get_sh_stock(s_code):   # stock code must be begin with numeral
+    code = getcodebytype(s_code, ctype='Numeral')
     df = ak.stock_individual_info_em(symbol=code)
     return df
 
