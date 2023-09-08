@@ -18,6 +18,7 @@ time_windows = 5
 FILEDIR = "stocks"
 TRAIN_DIR = "train"
 STOCK_INFO_FILE = "text.txt"
+SPECIALDATE = "2023-09-05"
 
 
 if __name__ == '__main__':
@@ -54,8 +55,13 @@ if __name__ == '__main__':
             # 获取stock原始数据，找到对应日期的价格
             df = pd.read_csv(filepath, parse_dates=True, index_col='date')
             df.index = pd.to_datetime(df.index, format='%Y-%m-%d', utc=True)
+            '''
+            d_days = 1
+            after_date = (datetime.datetime.strptime(SPECIALDATE, "%Y-%m-%d") +
+                           datetime.timedelta(d_days)).strftime("%Y-%m-%d")
+                           '''
             for it2 in df.index:
-                if datetime.datetime.strftime(it2, "%Y-%m-%d") == '2023-09-06':
+                if datetime.datetime.strftime(it2, "%Y-%m-%d") == SPECIALDATE:
                     real_price = float('%.2f' % df['close'][it2])
                     pre_deal_price1 = real_price * (1 + persent_stock)
                     pre_deal_price2 = real_price * (1 - persent_stock)
