@@ -203,7 +203,7 @@ def gra_one(f_data, m=0):
 def gra(data):
     df = data.copy()
     columns = [str(s) for s in df.columns if s not in [None]]  # [1 2 ,,,12]
-    print(f"gra: columns: {columns}")
+    #print(f"gra: columns: {columns}")
     df_local = pd.DataFrame(columns=columns)
     df.columns = columns
     for i in range(len(df.columns)):  # 每一列都做参照序列，求关联系数
