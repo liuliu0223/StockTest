@@ -50,19 +50,19 @@ if __name__ == '__main__':
                 train_file = pre_deal.create_trainfile(code, data_set_process)
                 print("file的title信息：" + train_file)
                 persent_stock = float(xgbt.xgb_train(data_set_process, RUNDNUM, time_windows))
-            if df is None:
-                break
-            else:
-                df = pd.read_csv(filepath, parse_dates=True, index_col='date')
-                df.index = pd.to_datetime(df.index, format='%Y-%m-%d', utc=True)
 
-                for it2 in df.index:
-                    print("print:" + datetime.datetime.strftime(it2, "%Y-%m-%d"))
-                    if datetime.datetime.strftime(it2, "%Y-%m-%d") == '2023-09-06':
-                        real_price = float('%.2f' % df['close'][it2])
-                        pre_deal_price1 = real_price * (1 + persent_stock)
-                        pre_deal_price2 = real_price * (1 - persent_stock)
-                        print(f"2023-09-07 REAL Close price: %.2f, 2023-09-07 pre_deal_price1：%.2f, pre_deal_price2: %.2f"
-                              % (real_price, pre_deal_price1, pre_deal_price2))
+            # 获取stock原始数据，找到对应日期的价格
+            df = pd.read_csv(filepath, parse_dates=True, index_col='date')
+            df.index = pd.to_datetime(df.index, format='%Y-%m-%d', utc=True)
+            for it2 in df.index:
+                if datetime.datetime.strftime(it2, "%Y-%m-%d") == '2023-09-06':
+                    real_price = float('%.2f' % df['close'][it2])
+                    pre_deal_price1 = real_price * (1 + persent_stock)
+                    pre_deal_price2 = real_price * (1 - persent_stock)
+                    print(f"2023-09-07 REAL Close price is %.2f；\n2023-09-07 predict price1 is %.2f, pre_deal_price2: %.2f"
+                          % (real_price, pre_deal_price1, pre_deal_price2))
+            # 获取结束
+        it += 1
+
 
 
