@@ -14,6 +14,15 @@ def xgb_train(df, rundnum, time_windows):
     scaler = MinMaxScaler(feature_range=(0, 1))
     scaled_data = scaler.fit_transform(data_set_process)
 
+    # 清除掉0值
+    num_ = data_set_process.isnull().sum()
+    iter = 0
+    while iter < len(num_.values):
+        if num_.values[iter] > 0:
+            data_set_process = data_set_process.dropna(axis=0, how='any')  # axis=0 删除全是缺失值的行；axis=1，删除全是缺失值的列
+        iter += 1
+    print(f"pure_data: Deleted null : \n {num_}")
+    # 清除掉0 值
     train_size = int(len(data_set_process)*0.8)
     test_size = len(data_set_process) - train_size
     train_XGB, test_XGB = scaled_data[0:train_size, :], scaled_data[train_size:len(data_set_process), :]
@@ -28,15 +37,15 @@ def xgb_train(df, rundnum, time_windows):
     params = {
         'booster': 'gbtree',
         'objective': 'binary:logistic',
-        'gamma': 0.1,
-        'max_depth': 5,
-        'lambda': 3,
-        'subsample': 0.7,
-        'colsample_bytree': 0.7,
-        'min_child_weight': 3,
+        'gamma': 0.1,  # 0.1
+        'max_depth': 2,  # 5
+        'lambda': 3,   # 3
+        'subsample': 0.9,  # 0.7
+        'colsample_bytree': 0.9,  # 0.7
+        'min_child_weight': 5,  # 3
         'slient': 1,
-        'eta': 0.1,
-        'seed': 1000,
+        'eta': 0.05,  # 0.1
+        'seed': 1000,  # 1000
         'nthread': 4,
     }
 
@@ -63,3 +72,6 @@ def xgb_train(df, rundnum, time_windows):
 
     mape_xgb = np.mean(np.abs(y_pred_xgb-test_XGB_Y)/test_XGB_Y)*100
     print('XGBoost平均误差率为：{}%'.format(mape_xgb))  #平均误差率为1.1974%
+    mape_xgb2 = float(np.mean(np.abs(y_pred_xgb-test_XGB_Y)/test_XGB_Y))
+
+    return (mape_xgb2)
