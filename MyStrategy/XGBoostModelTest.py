@@ -21,7 +21,7 @@ def xgb_train(df, rundnum, time_windows):
         if num_.values[iter] > 0:
             data_set_process = data_set_process.dropna(axis=0, how='any')  # axis=0 删除全是缺失值的行；axis=1，删除全是缺失值的列
         iter += 1
-    print(f"pure_data: Deleted null : \n {num_}")
+    #print(f"pure_data: Deleted null : \n {num_}")
     # 清除掉0 值
     train_size = int(len(data_set_process)*0.8)
     test_size = len(data_set_process) - train_size
