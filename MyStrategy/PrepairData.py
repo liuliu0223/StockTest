@@ -12,7 +12,7 @@ from torch.backends import cudnn
 
 
 WIN_ENV_FLAG = True
-FILEDIR = "stocks"
+STOCK_FILEDIR = "stocks"
 STOCK_INFO_FILE = "text.txt"
 cudnn.benchmark = True
 
@@ -22,9 +22,9 @@ def get_work_path(pack_name):
     parent_dir = os.path.dirname(current_path)
     if pack_name == "":
         if WIN_ENV_FLAG:
-            return parent_dir + "\\"
+            return current_path + "\\"
         else:
-            return parent_dir + "/"
+            return current_path + "/"
     else:
         if WIN_ENV_FLAG:
             return str(parent_dir + '\\' + pack_name + '\\').strip()
@@ -48,7 +48,7 @@ def get_codes(name):
 # function: getcodebytype
 # input:
 #     code(String)
-#     ctype(String):ctype='Numeral', means returen string begin with numberal, such as 600202;
+#     ctype(String):ctype='Numeral', means return string begin with numberal, such as 600202;
 #                   ctype='String' , means return string with character, such as sh600202;
 #                   ctype=None, means return string with character, such as sh600202
 # return: stock code (string)
@@ -65,7 +65,7 @@ def getcodebytype(code, ctype):
                 s_code = "sh" + code
             else:
                 s_code = "sz" + code
-    elif ctype == 'Numberal':
+    elif ctype == 'Numeral':
         if num_code_type:
             return s_code
         else:
@@ -82,14 +82,14 @@ def getcodebytype(code, ctype):
 
 # 转换文件中的代码信息，查找对应代码的内容
 def get_sh_stock(s_code):   # stock code mustbe begin with numeral
-    code = getcodebytype(s_code, ctype='Numberal')
+    code = getcodebytype(s_code, ctype='Numeral')
     df = ak.stock_individual_info_em(symbol=code)
     return df
 
 
 # 从接口中读取指定日期的数据，并存在制定路径的文件里
 def prepare_data(f_code, f_startdate, f_enddate):
-    csv_file = get_work_path(FILEDIR) + f_code + ".csv"
+    csv_file = get_work_path(STOCK_FILEDIR) + f_code + ".csv"
     print("file的title信息：" + csv_file)
     get_sh_stock(f_code)
     file = open(csv_file, 'w', encoding='utf-8')
@@ -214,7 +214,7 @@ def gra(data):
 
 # 热力图展示
 def ShowGRAHeatMap(DataFrame):
-    f, ax = plt.subplots(figsize=(15, 15))
+    f, ax = plt.subplots(figsize=(10, 6))
     ax.set_title('STOCK GRA')
     # 设置展示一半，如果不需要注释掉mask即可
     # mask = np.zeros_like(DataFrame)
