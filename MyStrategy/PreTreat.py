@@ -1,15 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-import datetime
-import os
-import akshare as ak
+
 import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
 import PrepairData as prd
 
 WIN_ENV_FLAG = True
 FILEDIR = "stocks"
+TRAIN_DIR = "train"
 STOCK_INFO_FILE = "text.txt"
 
 
@@ -27,6 +24,7 @@ class PreTreadData:
         data_columns = ['open', 'high', 'low', 'close']
         data = data[data_columns]  # Note this is important to the important feature choice
         cols, names = list(), list()
+
         for i in range(time_window, -1, -1):
             # get the data
             cols.append(data.shift(i))  # 数据偏移量
@@ -44,17 +42,24 @@ class PreTreadData:
         agg.index = data.index.copy()
         # remove the nan value which is caused by pandas.shift
         agg = agg.dropna(inplace=False)
-
         # remove unused col (only keep the "close" fied for the t+1 period)
         # Note col "close" place in the columns
-
         len_ = len(data_columns) * time_window
         col_numbers_drop = []
         for i in range(len(data_columns) - 1):
             col_numbers_drop.append(len_ + i)
-
         agg.drop(agg.columns[col_numbers_drop], axis=1, inplace=True)
         return agg
+
+    def create_trainfile(self, code, data_datafram):
+        train_file = prd.get_work_path(TRAIN_DIR) + code + ".csv"
+        print("file的title信息：" + train_file)
+        file = open(train_file, 'w', encoding='utf-8')
+        data_datafram.to_csv(file, encoding='utf-8')
+        print(data_datafram.columns.values)
+        print(data_datafram.info())
+        file.close()
+        return train_file
 
 
 if __name__ == '__main__':
@@ -65,29 +70,34 @@ if __name__ == '__main__':
     it = 0
     code = ""
     filepath = ""
+    train_file = ""
     for code in codes:
         if it > 1:
             code = str(codes[it]).replace('\n', '')  # "sz300598"
             filepath = prd.prepare_data(code, startdate, enddate)
+            # 加载数据，进行数据处理和分析
+            df = prd.load_data(filepath)
+            #  test stock file
+            #    filepath = 'C:\\01 Work\\13 program\PyProject1.0\stocks\sz300589.csv'
+            #    df = prd.load_data(filepath)
+            if df is None:
+                print("There is no correct file in stocks!!!")
+                break
+            else:
+                p_df = prd.pure_data(df, None)
+                pre_deal = PreTreadData(p_df)
+                all_data_set = p_df.copy()  # date is index and already setted in func load_data()
+                data_set_process = pre_deal.series_to_supervised(all_data_set, 30)  # 取近30天的数据
+                train_file = pre_deal.create_trainfile(code, data_set_process)
+                print("file的title信息：" + train_file)
         it += 1
-    df = prd.load_data(filepath)
-    #  test stock file
-    #    filepath = 'C:\\01 Work\\13 program\PyProject1.0\stocks\sz300589.csv'
-    #    df = prd.load_data(filepath)
-    p_df = prd.pure_data(df, None)
-    pre_deal = PreTreadData(p_df)
-    all_data_set = p_df.copy()  # date is index and already setted in func load_data()
 
+
+'''
     len_ = len(['open', 'high', 'low', 'close']) * 3
     col_numbers_drop = []
     for i in range(3):
         col_numbers_drop.append(len_ + i)
     print(col_numbers_drop)
+'''
 
-    #all_data_set2["Index"] = pd.to_datetime(all_data_set2["Index"])  # 日期object: to datetime
-    #all_data_set2.set_index("Index", inplace=True, drop=True)  # 把index设为索引
-    #all_data_set2 = all_data_set2[116:]  # 这里把7月28日的数据全部删掉了，主要是数据缺失较多
-
-    data_set_process = pre_deal.series_to_supervised(all_data_set, 500)  # 取近10分钟的数据
-    print(data_set_process.columns.values)
-    print(data_set_process.info())
