@@ -56,8 +56,8 @@ class PreTreadData:
         print("file的title信息：" + train_file)
         file = open(train_file, 'w', encoding='utf-8')
         data_datafram.to_csv(file, encoding='utf-8')
-        print(data_datafram.columns.values)
-        print(data_datafram.info())
+        #print(data_datafram.columns.values)
+        #print(data_datafram.info())
         file.close()
         return train_file
 
