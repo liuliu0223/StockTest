@@ -17,6 +17,29 @@ import` `requests``from` `bs4 ``import` `BeautifulSoup
 第五步：分析得到的信息，简化地址
 第六步：爬取内容，清洗数据
 
+按照可用库文件
+PyProject1.0> pip install tensorflow -i http://pypi.douban.com/simple/ --trusted-host pypi.douban.com
+
+1. 8个国内镜像源
+以下是中国常见的pip镜像源，按照完全度和下载速度排序，需要注意的是，镜像源的完全度和速度可能因地域和时间而异，建议根据自己的实际情况选择合适的镜像源。
+
+1.1 清华大学（完全度和速度都很好，是一个优秀的pip镜像源）
+https://pypi.tuna.tsinghua.edu.cn/simple
+1.2 阿里云（完全度和速度也很好，是一个不错的选择）
+https://mirrors.aliyun.com/pypi/simple/
+1.3 网易（速度比较快，但是完全度有限）
+https://mirrors.163.com/pypi/simple/
+1.4 豆瓣（速度较快，但是完全度也有限）
+https://pypi.douban.com/simple/
+1.5 百度云（速度较快，但是完全度也有限）
+https://mirror.baidu.com/pypi/simple/
+1.6 中科大（速度较快，但完全度不如前面几个镜像源）
+https://pypi.mirrors.ustc.edu.cn/simple/
+1.7 华为云（完全度和速度均中等）
+https://mirrors.huaweicloud.com/repository/pypi/simple/
+1.8 腾讯云（速度一般，完全度也一般）
+https://mirrors.cloud.tencent.com/pypi/simple/
+
 生成可执行文件方法一：
 用pyInstaller
 [root@localhost ~]# pip install pyinstaller
@@ -36,8 +59,20 @@ pyinstaller -F -w -i G:\automation\tpian.ico G:\automation\test.py
 3. 使用 baostock 库：baostock 是一个免费的、开源的 Python 股票数据接口，可以获取 A股的历史行情、实时行情、财务数据等。使用 baostock 库需要先安装，然后注册 baostock 账号，获取 token，即可使用 baostock 提供的 API 获取数据。
 4. 使用聚宽数据接口：聚宽是一个提供 A股数据的商业服务，可以获取 A股的历史行情、实时行情、财务数据等。使用聚宽需要先注册账号，然后购买相应的数据服务，使用聚宽提供的 API 获取数据。
 
+四、机器学习算法实现路径：
+4.1 导入数据
+4.2 研究数据
+4.3 数据预处理(数据清洗）
+    4.3.1 无效数据处理（删除空行，空数据替换）
+    4.3.2 数据无量纲处理：min-max归一化
+    4.3.3 初步特征分析：GRA(灰色关联度分析算法)、皮尔斯系数（热力图），获取关键特征值
+    4.3.4 数据集构建（训练集+测试集），8:2
+4.4 搭建模型
+    4.4.1 LSTM神经网络模型
+    4.4.2 XGBoost模型搭建
+4.5 数据可视化及评估
 
-'''
+
 # 绘制表格
 import matplotlib.pyplot as plt
 
@@ -49,7 +84,7 @@ plt.table(cellText=[data['姓名'], data['年龄'], data['成绩']], colLabels=l
 
 # 显示表格
 plt.show()
-'''
+
 
 #JSON 处理的是文件而不是字符串，你可以使用 json.dump() 和 json.load() 来编码和解码JSON数据.
 #!/usr/bin/python3
@@ -79,3 +114,12 @@ with open('data.json', 'w') as f:
 # 读取数据
 with open('data.json', 'r') as f:
     data = json.load(f)
+
+
+20230101
+20230831
+sh600602
+sh603918
+sh688031
+sz300598
+sz002475
