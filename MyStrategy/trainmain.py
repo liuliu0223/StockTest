@@ -7,21 +7,23 @@ import akshare as ak
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
+import sys
 
-import PrepairData as prd
-import PreTreat as PT
-import XGBoostModelTest as xgbt
+import MyStrategy.PrepairData as prd
+import MyStrategy.PreTreat as PT
+import MyStrategy.XGBoostModelTest as xgbt
 
-WIN_ENV_FLAG = True
-RUNDNUM = 960
-time_windows = 5
+WIN_ENV_FLAG = False
+RUNDNUM = 720
+time_windows = 3
 FILEDIR = "stocks"
 TRAIN_DIR = "train"
 STOCK_INFO_FILE = "text.txt"
-SPECIALDATE = "2023-09-05"
+SPECIALDATE = "2023-09-08"
 
 
 if __name__ == '__main__':
+    print(sys.path)
     # get the code data from websit
     codes = prd.get_codes(STOCK_INFO_FILE)
     startdate = str(codes[0]).replace('\n', '')  # 回测开始时间
@@ -60,15 +62,16 @@ if __name__ == '__main__':
             after_date = (datetime.datetime.strptime(SPECIALDATE, "%Y-%m-%d") +
                            datetime.timedelta(d_days)).strftime("%Y-%m-%d")
                            '''
-            for it2 in df.index:
-                if datetime.datetime.strftime(it2, "%Y-%m-%d") == SPECIALDATE:
-                    real_price = float('%.2f' % df['close'][it2])
+
+            i = len(df)-1
+            while i > 0:
+                special_date = datetime.datetime.strftime(df['close'].index[i], "%Y-%m-%d")
+                if special_date == SPECIALDATE:
+                    real_price = float("%.2f" % df['close'].values[i])
                     pre_deal_price1 = real_price * (1 + persent_stock)
                     pre_deal_price2 = real_price * (1 - persent_stock)
-                    print(f"2023-09-07 REAL Close price is %.2f；\n2023-09-07 predict price1 is %.2f, pre_deal_price2: %.2f"
+                    print(f"{SPECIALDATE} REAL Close price is %.2f；\n{SPECIALDATE} predict price1 is %.2f, pre_deal_price2: %.2f"
                           % (real_price, pre_deal_price1, pre_deal_price2))
-            # 获取结束
+                i = i - 1
+
         it += 1
-
-
-
