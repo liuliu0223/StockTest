@@ -7,35 +7,21 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-import torch
-from torch.backends import cudnn
 
 
-WIN_ENV_FLAG = True
+WIN_ENV_FLAG = False
 STOCK_FILEDIR = "stocks"
 STOCK_INFO_FILE = "text.txt"
-cudnn.benchmark = True
 
 
 def get_work_path(pack_name):
-    current_path = os.getcwd()
-    parent_dir = os.path.dirname(current_path)
-    if pack_name == "":
-        if WIN_ENV_FLAG:
-            return current_path + "\\"
-        else:
-            return current_path + "/"
-    else:
-        if WIN_ENV_FLAG:
-            return str(parent_dir + '\\' + pack_name + '\\').strip()
-        else:
-            return str(parent_dir + '/' + pack_name + '/').strip()
+    return os.path.join(os.getcwd(), pack_name)
 
 
 def get_codes(name):
     file = None
     try:
-        path = get_work_path("") + name
+        path = os.path.join(get_work_path("MyStrategy"), name)
         print(path + '\n')
         file = open(path, 'r')
         return file.readlines()
@@ -89,7 +75,8 @@ def get_sh_stock(s_code):   # stock code mustbe begin with numeral
 
 # 从接口中读取指定日期的数据，并存在制定路径的文件里
 def prepare_data(f_code, f_startdate, f_enddate):
-    csv_file = get_work_path(STOCK_FILEDIR) + f_code + ".csv"
+    path_ = os.path.join(os.getcwd() , STOCK_FILEDIR)
+    csv_file = os.path.join(path_, f"{f_code}.csv")
     print("file的title信息：" + csv_file)
     get_sh_stock(f_code)
     file = open(csv_file, 'w', encoding='utf-8')

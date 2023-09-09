@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense, LSTM
+#from tensorflow.keras.models import Sequential
+#from tensorflow.keras.layers import Dense, LSTM
 from sklearn.preprocessing import MinMaxScaler
 import xgboost as xgb
 from matplotlib import pyplot as plt
@@ -32,7 +32,6 @@ def xgb_train(df, rundnum, time_windows):
     test_XGB_X, test_XGB_Y = \
         test_XGB[:, :(len(data_set_process.columns)-1)], test_XGB[:, (len(data_set_process.columns)-1)]
 
-# 'objective': 'binary:logistic',  # 此处为回归预测，这里如果改成multi:softmax 则可以进行多分类
     # 算法参数
     params = {
         'booster': 'gbtree',
@@ -60,7 +59,8 @@ def xgb_train(df, rundnum, time_windows):
 
     #对测试集进行预测
     y_pred_xgb = model_xgb.predict(xgb_test)
-
+    print(f"预测值:\n{y_pred_xgb}")
+    print(f"max:{y_pred_xgb.max()}, min: {y_pred_xgb.min()}")
     # 模型结果可视化及评估
     plt.plot(test_XGB_Y, color='red', label='Real Price for Test set')
     plt.plot(y_pred_xgb, color='blue', label='Predicted Price for Test set')

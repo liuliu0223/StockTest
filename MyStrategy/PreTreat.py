@@ -2,9 +2,10 @@
 # -*- coding: utf-8; py-indent-offset:4 -*-
 
 import pandas as pd
-import PrepairData as prd
+import MyStrategy.PrepairData as prd
+import os
 
-WIN_ENV_FLAG = True
+WIN_ENV_FLAG = False
 FILEDIR = "stocks"
 TRAIN_DIR = "train"
 STOCK_INFO_FILE = "text.txt"
@@ -52,7 +53,7 @@ class PreTreadData:
         return agg
 
     def create_trainfile(self, code, data_datafram):
-        train_file = prd.get_work_path(TRAIN_DIR) + code + ".csv"
+        train_file = os.path.join(prd.get_work_path(TRAIN_DIR), f"{code}.csv")
         print("file的title信息：" + train_file)
         file = open(train_file, 'w', encoding='utf-8')
         data_datafram.to_csv(file, encoding='utf-8')
