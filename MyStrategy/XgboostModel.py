@@ -1,27 +1,29 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-#from tensorflow.keras.models import Sequential
-#from tensorflow.keras.layers import Dense, LSTM
 from sklearn.preprocessing import MinMaxScaler
 import xgboost as xgb
 from matplotlib import pyplot as plt
 import numpy as np
 from xgboost import plot_importance, plot_tree
+import pandas as pd
+from xgboost import XGBRegressor
+from sklearn import datasets
+from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.metrics import r2_score, mean_squared_error
 
 
 def xgb_train(data, rundnum, time_windows):
-    data_set_process = data
-    scaler = MinMaxScaler(feature_range=(0, 1))
-    scaled_data = scaler.fit_transform(data_set_process)
+    df = data
+    df.index = pd.to_datetime(df.index, format="%Y-%m-%d", utc=True)
+    columns = df.columns.tolist()
+    train_size = int(len(df)*0.8)
+    test_size = len(df) - train_size
 
-    train_size = int(len(data_set_process)*0.8)
-    test_size = len(data_set_process) - train_size
-    train_XGB, test_XGB = scaled_data[0:train_size, :], scaled_data[train_size:len(data_set_process), :]
+    print(f"train_XGB: %s" % (df))
+    train_XGB, test_XGB = df[0:train_size, :], df[train_size:len(df), :]
 
-    train_XGB_X, train_XGB_Y = \
-        train_XGB[:, :(len(data_set_process.columns)-1)], train_XGB[:, (len(data_set_process.columns)-1)]
-    test_XGB_X, test_XGB_Y = \
-        test_XGB[:, :(len(data_set_process.columns)-1)], test_XGB[:, (len(data_set_process.columns)-1)]
+    train_XGB_X, train_XGB_Y = train_XGB[:, :(len(columns)-1)], train_XGB[:, (len(columns)-1)]
+    test_XGB_X, test_XGB_Y = test_XGB[:, :(len(columns)-1)], test_XGB[:, (len(columns)-1)]
 
     # 算法参数
     params = {
@@ -33,10 +35,10 @@ def xgb_train(data, rundnum, time_windows):
         'subsample': 0.9,  # 0.7
         'colsample_bytree': 0.9,  # 0.7
         'min_child_weight': 5,  # 3
-        'slient': 1,      # =1输出中间过程，=0不输出中间过程
+        'slient': 1,
         'eta': 0.05,  # 0.1
         'seed': 1000,  # 1000
-        'nthread': 2,
+        'nthread': 4,
     }
 
     #生成数据集格式
@@ -63,7 +65,8 @@ def xgb_train(data, rundnum, time_windows):
     plt.show()
 
     mape_xgb = np.mean(np.abs(y_pred_xgb-test_XGB_Y)/test_XGB_Y)*100
-    print('XGBoostModelTest.py ----- XGBoost平均误差率为：{}%'.format(mape_xgb))  #平均误差率为1.1974%
+    print('XGBoostModel.py ----- XGBoost平均误差率为：{}%'.format(mape_xgb))  #平均误差率为1.1974%
     mape_xgb2 = float(np.mean(np.abs(y_pred_xgb-test_XGB_Y)/test_XGB_Y))
 
     return (mape_xgb2)
+
