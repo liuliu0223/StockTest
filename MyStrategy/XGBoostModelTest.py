@@ -2,6 +2,7 @@
 # -*- coding: utf-8; py-indent-offset:4 -*-
 #from tensorflow.keras.models import Sequential
 #from tensorflow.keras.layers import Dense, LSTM
+import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 import xgboost as xgb
 from matplotlib import pyplot as plt
@@ -66,4 +67,14 @@ def xgb_train(data, rundnum, time_windows):
     print('XGBoostModelTest.py ----- XGBoost平均误差率为：{}%'.format(mape_xgb))  #平均误差率为1.1974%
     mape_xgb2 = float(np.mean(np.abs(y_pred_xgb-test_XGB_Y)/test_XGB_Y))
 
-    return (mape_xgb2)
+    # 反归一化处理
+ #   arr = np.array(y_pred_xgb)
+    tmp_data = pd.DataFrame(y_pred_xgb)
+    tmp_data1 = pd.DataFrame(test_XGB)
+    tmp_data1.drop(tmp_data1.columns[len(tmp_data1.columns)-1], axis=1, inplace=True)
+    tmp_data1 = pd.concat([tmp_data1, tmp_data], axis=1)  # 把预测值列拼接到最后一列，为close(t+1)
+
+    pred_data = scaler.inverse_transform(tmp_data1)
+    print(f"预测值:\n{pred_data}")
+    print(f"max:{pred_data.max()}, min: {pred_data.min()}")
+    return (pred_data)
