@@ -9,20 +9,11 @@ import numpy as np
 from xgboost import plot_importance, plot_tree
 
 
-def xgb_train(df, rundnum, time_windows):
-    data_set_process = df
+def xgb_train(data, rundnum, time_windows):
+    data_set_process = data
     scaler = MinMaxScaler(feature_range=(0, 1))
     scaled_data = scaler.fit_transform(data_set_process)
 
-    # 清除掉0值
-    num_ = data_set_process.isnull().sum()
-    iter = 0
-    while iter < len(num_.values):
-        if num_.values[iter] > 0:
-            data_set_process = data_set_process.dropna(axis=0, how='any')  # axis=0 删除全是缺失值的行；axis=1，删除全是缺失值的列
-        iter += 1
-    #print(f"pure_data: Deleted null : \n {num_}")
-    # 清除掉0 值
     train_size = int(len(data_set_process)*0.8)
     test_size = len(data_set_process) - train_size
     train_XGB, test_XGB = scaled_data[0:train_size, :], scaled_data[train_size:len(data_set_process), :]
@@ -59,6 +50,7 @@ def xgb_train(df, rundnum, time_windows):
 
     #对测试集进行预测
     y_pred_xgb = model_xgb.predict(xgb_test)
+
     print(f"预测值:\n{y_pred_xgb}")
     print(f"max:{y_pred_xgb.max()}, min: {y_pred_xgb.min()}")
     # 模型结果可视化及评估
