@@ -12,7 +12,7 @@ import numpy as np
 STAKE = 1500  # volume once
 START_CASH = 150000  # initial cost
 COMM_VALUE = 0.002   # 费率
-WIN_ENV_FLAG = True  # windows环境设置
+WIN_ENV_FLAG = False  # windows环境设置
 FILEDIR = "stocks"
 
 # globle value

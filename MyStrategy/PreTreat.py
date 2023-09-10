@@ -13,8 +13,8 @@ STOCK_INFO_FILE = "text.txt"
 
 class PreTreadData:
 
-    def __init__(self, df):
-        data_set = df
+    def __init__(self, data):
+        data_set = data
         print("PreTread Class init:")
 
     # 依据特征重要性，选择low high open来进行预测close
@@ -22,7 +22,7 @@ class PreTreadData:
     # 转换原始数据为新的特征列来进行预测,time_window可以用来调试用前几次的数据来预测
 
     def series_to_supervised(self, data, time_window=3):
-        data_columns = ['open', 'high', 'low', 'close']
+        data_columns = ['open', 'high', 'low', 'close']   # 特征值属性名称，可以通过特征值判断传入列表
         data = data[data_columns]  # Note this is important to the important feature choice
         cols, names = list(), list()
 
@@ -38,6 +38,7 @@ class PreTreadData:
             names += [(colname + suffix) for colname in data_columns]
 
         # concat the cols into one dataframe
+        # 数据按列拼接axis=1， axis=0（按行拼接）
         agg = pd.concat(cols, axis=1)
         agg.columns = names
         agg.index = data.index.copy()
@@ -49,12 +50,13 @@ class PreTreadData:
         col_numbers_drop = []
         for i in range(len(data_columns) - 1):
             col_numbers_drop.append(len_ + i)
-        agg.drop(agg.columns[col_numbers_drop], axis=1, inplace=True)
+
+        agg.drop(agg.columns[col_numbers_drop], axis=1, inplace=True)  # inplace=True用替换后的数据
+
         return agg
 
     def create_trainfile(self, code, data_datafram):
         train_file = os.path.join(prd.get_work_path(TRAIN_DIR), f"{code}.csv")
-        print("file的title信息：" + train_file)
         file = open(train_file, 'w', encoding='utf-8')
         data_datafram.to_csv(file, encoding='utf-8')
         #print(data_datafram.columns.values)

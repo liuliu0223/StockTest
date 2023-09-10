@@ -123,7 +123,7 @@ def pure_data(df, column_name):
     iter = 0
     while iter < len(data.values):
         if data.values[iter] > 0:
-            df.dropna(axis=0, how='any')  # axis=0 删除全是缺失值的行；axis=1，删除全是缺失值的列
+            df.dropna(axis=0, how='any', inplace=True)  # axis=0 删除全是缺失值的行；axis=1，删除全是缺失值的列
         iter += 1
     print(f"pure_data: Deleted null : \n {data}")
     # change the type of data, read from csv
