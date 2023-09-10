@@ -12,9 +12,10 @@ import sys
 import MyStrategy.PrepairData as prd
 import MyStrategy.PreTreat as PT
 import MyStrategy.XGBoostModelTest as xgbt
+import MyStrategy.XgboostModel as xgbm
 
 WIN_ENV_FLAG = False
-RUNDNUM = 1000
+RUNDNUM = 600
 time_windows = 5
 FILEDIR = "stocks"
 TRAIN_DIR = "train"
@@ -50,7 +51,9 @@ if __name__ == '__main__':
                 data_set_process = pre_deal.series_to_supervised(all_data_set, time_windows)  # 取近time_windows天的数据，平移数据
                 train_file = pre_deal.create_trainfile(code, data_set_process)
                 print("file的title信息：" + train_file)
-                delta = float(xgbt.xgb_train(data_set_process, RUNDNUM, time_windows))    # 混淆并训练数据
+                delta = float(xgbt.xgb_train(data_set_process, RUNDNUM, time_windows))    # 归一化、混淆并训练数据
+                #delta2 = float(xgbm.xgb_train(data_set_process, RUNDNUM, time_windows))
+                #print(f"delta: %.5f, delta2: %.5f" % (delta, delta2))
 
             '''
             # 获取stock原始数据，找到对应日期的价格
