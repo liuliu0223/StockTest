@@ -15,13 +15,15 @@ STOCK_INFO_FILE = "text.txt"
 
 
 def get_work_path(pack_name):
-    return os.path.join(os.getcwd(), pack_name)
+    work_path = os.path.join(os.getcwd(), pack_name)
+    print(f"get_work_path: os.getcwd=%s, \npack_name=%s, get_work_path=%s\n" % (os.getcwd(), pack_name, work_path))
+    return work_path
 
 
 def get_codes(name):
     file = None
     try:
-        path = os.path.join(get_work_path("MyStrategy"), name)
+        path = os.path.join(get_work_path(""), name)
         print(path + '\n')
         file = open(path, 'r')
         return file.readlines()
@@ -75,7 +77,7 @@ def get_sh_stock(s_code):   # stock code mustbe begin with numeral
 
 # 从接口中读取指定日期的数据，并存在制定路径的文件里
 def prepare_data(f_code, f_startdate, f_enddate):
-    path_ = os.path.join(os.getcwd() , STOCK_FILEDIR)
+    path_ = os.path.join(os.getcwd(), STOCK_FILEDIR)
     csv_file = os.path.join(path_, f"{f_code}.csv")
     print("file的title信息：" + csv_file)
     get_sh_stock(f_code)
@@ -115,7 +117,7 @@ def pure_data(df, column_name):
             if list_columns[it] == drop_column:
                 df = df.drop(list_columns[it], axis=1)
         it += 1
-#    print(f"df.info:{df.info()}")
+
     # how = 'all', 只有当前行都是缺失值才删除
     # how = 'any', 只要当前行有一个缺失值就删除
     print(f"pure_data: check the datas, there is null: \n {df.isnull().sum()}")
