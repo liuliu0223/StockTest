@@ -15,7 +15,7 @@ import MyStrategy.XGBoostModelTest as xgbt
 import MyStrategy.XgboostModel as xgbm
 
 WIN_ENV_FLAG = False
-RUNDNUM = 600
+RUNDNUM = 720
 time_windows = 3
 FILEDIR = "stocks"
 TRAIN_DIR = "train"
