@@ -202,15 +202,18 @@ def gra(data):
 
 
 # 热力图展示
-def ShowGRAHeatMap(DataFrame):
+def ShowGRAHeatMap(data):
     f, ax = plt.subplots(figsize=(10, 6))
     ax.set_title('STOCK GRA')
     # 设置展示一半，如果不需要注释掉mask即可
     # mask = np.zeros_like(DataFrame)
     # mask[np.triu_indices_from(mask)] = True  # np.triu_indices 上三角矩阵
-    list_columns = DataFrame.columns
-    sns.heatmap(DataFrame[list_columns].corr(), cmap="YlGnBu", annot=True, fmt=".2f")
+    list_columns = data.columns
+    sns.heatmap(data[list_columns].corr(), cmap="YlGnBu", annot=True, fmt=".2f")
+    corr_1 = data.corr()
+    corr2 = corr_1['close'].sort_values(ascending=False)
     plt.show()
+    return corr2
 
 
 if __name__ == '__main__':
