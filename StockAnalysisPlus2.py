@@ -226,29 +226,22 @@ class MyStrategy(bt.Strategy):
                 if fund > START_CASH * 1.03:
                     self.order = self.close(size=size)
                     self.is_special(self.datas[0].datetime.date(0),
-                                    'Inside dead cross, sell, close: %.2f，Total fundda：%.2f, pos: %.2f' %
+                                    'Inside dead cross, sell, close: %.2f，Total fund：%.2f, pos: %.2f' %
                                     (self.data_close[0], fund, size))
                     self.log('Inside dead cross, sell, close:  %.2f，Total fund：%.2f, pos: %.2f' %
                              (self.data_close[0], fund, size))
 
 
 def get_work_path(pack_name):
-    if pack_name == "":
-        if WIN_ENV_FLAG:
-            return os.getcwd() + '\\'
-        else:
-            return os.getcwd() + '/'
-    else:
-        if WIN_ENV_FLAG:
-            return str(os.getcwd() + '\\' + pack_name + '\\').strip()
-        else:
-            return str(os.getcwd() + '/' + pack_name + '/').strip()
+    work_path = os.path.join(os.getcwd(), pack_name)
+    #print(f"get_work_path: os.getcwd=%s, \npack_name=%s, get_work_path=%s\n" % (os.getcwd(), pack_name, work_path))
+    return work_path
 
 
-def get_codes(file_name):
+def get_codes(name):
     file = None
     try:
-        path = get_work_path("") + file_name
+        path = os.path.join(get_work_path(""), name)
         print(path + '\n')
         file = open(path, 'r')
         return file.readlines()
@@ -258,7 +251,7 @@ def get_codes(file_name):
 
 
 def get_file(f_code):
-    code_file = str(get_work_path(FILEDIR) + f'{f_code}.csv')
+    code_file = os.path.join(get_work_path(FILEDIR), f'{f_code}.csv')
     return code_file
 
 

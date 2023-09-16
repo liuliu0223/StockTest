@@ -16,7 +16,7 @@ STOCK_INFO_FILE = "text.txt"
 
 def get_work_path(pack_name):
     work_path = os.path.join(os.getcwd(), pack_name)
-    print(f"get_work_path: os.getcwd=%s, \npack_name=%s, get_work_path=%s\n" % (os.getcwd(), pack_name, work_path))
+    #print(f"get_work_path: os.getcwd=%s, \npack_name=%s, get_work_path=%s\n" % (os.getcwd(), pack_name, work_path))
     return work_path
 
 
@@ -120,14 +120,14 @@ def pure_data(df, column_name):
 
     # how = 'all', 只有当前行都是缺失值才删除
     # how = 'any', 只要当前行有一个缺失值就删除
-    print(f"pure_data: check the datas, there is null: \n {df.isnull().sum()}")
+    #print(f"pure_data: check the datas, there is null: \n {df.isnull().sum()}")
     data = df.isnull().sum()
     iter = 0
     while iter < len(data.values):
         if data.values[iter] > 0:
             df.dropna(axis=0, how='any', inplace=True)  # axis=0 删除全是缺失值的行；axis=1，删除全是缺失值的列
         iter += 1
-    print(f"pure_data: Deleted null : \n {data}")
+    #print(f"pure_data: Deleted null : \n {data}")
     # change the type of data, read from csv
     df['open'] = pd.to_numeric(df['open'], downcast='float')
     df['close'] = pd.to_numeric(df['close'], downcast='float')
@@ -140,13 +140,13 @@ def pure_data(df, column_name):
 
 
 # 第一步：无量纲化，数据归一化，min-max处理
-def standard_data(df):
+def standard_data(data):
     """
     df : 原始数据
     return : data 标准化的数据
     """
-    p_df = pure_data(df, 'Unnamed: 0')
-    data = pd.DataFrame(index=p_df.index)  # 列名，一个新的dataframe
+    p_df = pure_data(data, 'Unnamed: 0')
+    df = pd.DataFrame(index=p_df.index)  # 列名，一个新的dataframe
     columns = p_df.columns.tolist()  # 将列名提取出来
     for col in columns:
         if col == 'date':
@@ -155,8 +155,8 @@ def standard_data(df):
         max = d.max()
         min = d.min()
         mean = d.mean()
-        data[col] = ((d - mean) / (max - min)).tolist()
-    return data
+        df[col] = ((d - mean) / (max - min)).tolist()
+    return df
 
 
 #  某一列当做参照序列，其他为对比序列
