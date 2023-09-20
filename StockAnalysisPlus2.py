@@ -13,7 +13,8 @@ STAKE = 1500  # volume once
 START_CASH = 150000  # initial cost
 COMM_VALUE = 0.002   # 费率
 WIN_ENV_FLAG = False  # windows环境设置
-FILEDIR = "stocks"
+FILEDIR = 'stocks'
+CODES_FILE = 'text.txt'
 
 # globle value
 stock_pnl = []  # Net profit
@@ -137,6 +138,7 @@ class MyStrategy(bt.Strategy):
     # 初始化函数，初始化属性、指标的计算，only once time
     def __init__(self):
         self.data_close = self.datas[0].close  # close data
+        self.date = self.datas[0].datetime.date(0)
         # initial data
         self.order = None
         self.buy_price = None
@@ -290,11 +292,9 @@ def getcodebytype(code, ctype='Numeral'):
 def get_business_day(s_date, days=-1):
     before_date = "1900-01-01"
     d_days = 0
-    #s_date = '2023-09-04'
+    # s_date = '2023-09-04'  0Monday1Tuesday2Wednesday3Thursday4Friday5Saturday6Sunday
     week_days = int(datetime.datetime.strptime(s_date, "%Y-%m-%d").weekday())
-    if days is None:
-        d_days = 0
-    else:
+    if days is not None:
         d_days = days
     if week_days == 0:
         d_days = d_days - 2
@@ -305,20 +305,19 @@ def get_business_day(s_date, days=-1):
         before_date = (datetime.datetime.strptime(s_date, "%Y-%m-%d") +
                        datetime.timedelta(d_days)).strftime("%Y-%m-%d")
     else:
-        d_days = d_days
         before_date = (datetime.datetime.strptime(s_date, "%Y-%m-%d") +
                        datetime.timedelta(d_days)).strftime("%Y-%m-%d")
     return before_date
 
 
-def get_sh_stock(s_code):   # stock code must be begin with numeral
+def get_sh_stock(s_code):   # stock code must be begin with numeral, s_code=600602
     code = getcodebytype(s_code, ctype='Numeral')
     df = ak.stock_individual_info_em(symbol=code)
     return df
 
 
 def get_stocks():
-    filename = "text.txt"
+    filename = CODES_FILE
     if MyStrategy.params.pslow == 20:
         filename = "text520.txt"
     elif MyStrategy.params.pslow == 30:
@@ -329,7 +328,7 @@ def get_stocks():
 # 准备历史数据做预测评估
 def prepare_data(f_code, f_startdate, f_enddate):
     csv_file = str(get_file(f_code))
-    print("file的title信息：" + csv_file)
+    print("prepare_data: file path=" + csv_file)
     get_sh_stock(f_code)  # 去掉代码前缀 sh or sz
     file = open(csv_file, 'w', encoding='utf-8')
     # 默认返回不复权的数据; qfq: 返回前复权后的数据; hfq: 返回后复权后的数据; hfq-factor: 返回后复权因子; qfq-factor: 返回前复权因子
@@ -343,34 +342,36 @@ def prepare_data(f_code, f_startdate, f_enddate):
     return csv_file
 
 
+# get the stock information from csv file, then to calculate the stock's min, max, std and mean value
 def get_consider(f_filepath):
     file_path = f_filepath
     sdf = pd.read_csv(file_path, parse_dates=True, index_col='date')
     sdf.index = pd.to_datetime(sdf.index, format="%Y-%m-%d", utc=True)
-    it = 0
-    max_list = []
-    min_list = []
-    close_list = []
-    while it < len(sdf):
-        max_list.append(sdf['high'].values[it])
-        min_list.append(sdf['low'].values[it])
-        close_list.append(sdf['close'].values[it])
-        it += 1
+
+    max_list = sdf['high'].values.tolist()
+    close_list = sdf['close'].values.tolist()
+    min_list = sdf['low'].values.tolist()
+
     max_median = np.median(max_list)
     max_value = np.max(max_list)
     max_std = np.std(max_list)
+    max_mean = np.mean(max_list)
     min_median = np.median(min_list)
     min_value = np.min(min_list)
     min_std = np.std(min_list)
+    min_mean = np.mean(min_list)
     close_median = np.median(close_list)
     close_max = np.max(close_list)
     close_min = np.min(close_list)
     close_std = np.std(close_list)
+    close_mean = np.mean(close_list)
     # print(f"initial cost: {START_CASH} \nPeriod：{startdate}:{enddate}")
-    print('Max median value: %.2f, max value: %.2f, max std: %.2f' % (max_median, max_value, max_std))
-    print('Min median value: %.2f, min value: %.2f, min std: %.2f' % (min_median, min_value, min_std))
-    print('Close median value: %.2f, Close max: %.2f, Close min: %.2f, Close std: %.2f' %
-          (close_median, close_max, close_min, close_std))
+    print('Max median value: %.2f, max value: %.2f, max std: %.2f, max mean: %.2f' %
+          (max_median, max_value, max_std, max_mean))
+    print('Min median value: %.2f, min value: %.2f, min std: %.2f, min mean: %.2f' %
+          (min_median, min_value, min_std, min_mean))
+    print('Close median value: %.2f, Close max: %.2f, Close min: %.2f, Close std: %.2f, Close mean: %.2f' %
+          (close_median, close_max, close_min, close_std, close_mean))
     return sdf
 
 
@@ -396,7 +397,7 @@ def run_strategy(f_startdate, f_enddate, f_file):
         stock_pnl.append(pnl)
     print('Begin Fund: %.2f, Total Cash: %.2f' % (START_CASH, round(port_value, 2)))
     print(f"Net Profit: {round(pnl, 2)}\n\n")
-    # cerebro.plot(style='candlestick')  # 画图
+    #cerebro.plot(style='candlestick')  # 画图
 
 
 # sorted by strategy result
