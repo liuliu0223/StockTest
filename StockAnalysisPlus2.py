@@ -8,6 +8,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 
+import MyStrategy.StrategyMini as smini
 # const value
 STAKE = 1500  # volume once
 START_CASH = 150000  # initial cost
@@ -427,7 +428,7 @@ def stock_rank():
 
 
 if __name__ == '__main__':
-    plt.switch_backend('agg')
+    #plt.switch_backend('agg')
     plt.rcParams["font.sans-serif"] = ["SimHei"]  # set Chinese to draw picture
     plt.rcParams["axes.unicode_minus"] = False  # 设置画图时的负号显示
     codes = get_codes(get_stocks())
@@ -445,8 +446,10 @@ if __name__ == '__main__':
                 code_value = get_sh_stock(code)
                 # print(code_value)
                 print(f"code: {code_value.value[4]}, name：{code_value.value[5]}")
+                (dif, dea, hist) = smini.computeMACD(code, startdate, enddate)
                 stock_list.append(code_value.value[5])
                 run_strategy(startdate, enddate, filepath)
+
             else:
                 break
         it += 1
@@ -459,7 +462,7 @@ if __name__ == '__main__':
     code_name = ""
     my_stock = MyStock()
     while it2 < len(special_info):
-        code_value = get_sh_stock(special_info[it2]['code'])   #  code include sh
+        code_value = get_sh_stock(special_info[it2]['code'])   # code include sh
         code_name = code_value.values[5][1]
         code = code_value.values[4][1]
         s_date = special_info[it2]['date']
