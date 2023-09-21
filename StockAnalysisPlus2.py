@@ -266,24 +266,40 @@ def get_file(f_code):
 #                   ctype='String' , means return string with character, such as sh600202;
 #                   ctype=None, means return string with character, such as sh600202
 # return: stock code (string)
-#
-#
-def getcodebytype(code, ctype='Numeral'):
+def getcodebytype(code, ctype):
     s_code = code
     num_code_type = False
     if len(code) == 6:
         num_code_type = True
-    if ctype == 'Numeral':
+
+    if ctype is None:
+        if num_code_type:
+            if "6" == code[:1]:
+                s_code = "sh" + code
+            else:
+                s_code = "sz" + code
+    elif ctype == 'Numeral':
         if num_code_type:
             return s_code
         else:
             return s_code[2:]
+    elif ctype == 'SpecialString':
+        if num_code_type:
+            if "6" == code[:1]:
+                s_code = "sh." + code
+            else:
+                s_code = "sz." + code
+        else:
+            if s_code.find('.') < 0:
+                s_code = s_code[:2] + '.' + s_code[2:]
     else:
         if num_code_type:
             if "6" == code[:1]:
                 s_code = "sh" + code
             else:
                 s_code = "sz" + code
+        elif len(s_code) > 8:
+            s_code = s_code[:2] + s_code[3:]
     return s_code
 
 
@@ -428,7 +444,7 @@ def stock_rank():
 
 
 if __name__ == '__main__':
-    #plt.switch_backend('agg')
+    plt.switch_backend('agg')
     plt.rcParams["font.sans-serif"] = ["SimHei"]  # set Chinese to draw picture
     plt.rcParams["axes.unicode_minus"] = False  # 设置画图时的负号显示
     codes = get_codes(get_stocks())
@@ -436,6 +452,7 @@ if __name__ == '__main__':
     enddate = str(codes[1]).replace('\n', '')  # 回测结束时间
     it = 0
     code = ""
+    Special_ops = []
     for code in codes:
         if it > 1:
             code = str(codes[it]).replace('\n', '')  # "sz300598"
@@ -446,10 +463,11 @@ if __name__ == '__main__':
                 code_value = get_sh_stock(code)
                 # print(code_value)
                 print(f"code: {code_value.value[4]}, name：{code_value.value[5]}")
-                (dif, dea, hist) = smini.computeMACD(code, startdate, enddate)
+                (dif, dea, hist, Special_ops) = smini.computeMACD(code, startdate, enddate)
+                if len(Special_ops) > 0:
+                    Special_ops.append(Special_ops)
                 stock_list.append(code_value.value[5])
                 run_strategy(startdate, enddate, filepath)
-
             else:
                 break
         it += 1
@@ -473,9 +491,22 @@ if __name__ == '__main__':
         print(f"{b4_s_date}, open: {b4_s_date_info['open']}, close: {b4_s_date_info['close']}, "
               f"high: {b4_s_date_info['high']}, low: {b4_s_date_info['low']}")
         s_code = getcodebytype(code, ctype='String')
+        it3 = 0
+        while it3 < len(Special_ops) & len(Special_ops) > 0:
+            c_code = getcodebytype(Special_ops[it3]['code'], ctype='String')
+            c_date = Special_ops[it3]['date']
+            b4_s_date = get_business_day(s_date, days=-1)
+            b4_s_date_info = my_stock.get_stock_by_date(code, b4_s_date)
+            if c_code == s_code & c_date == s_date:
+                b4_s_date = get_business_day(c_date, days=-1)
+                b4_s_date_info = my_stock.get_stock_by_date(code, b4_s_date)
+                print(f"\n[MACD Specal opt is :{code_name}]")
+                print('%s, %s' % (c_date, Special_ops[it3]['msg']))
+                print(f"{b4_s_date}, open: {b4_s_date_info['open']}, close: {b4_s_date_info['close']}, "
+                      f"high: {b4_s_date_info['high']}, low: {b4_s_date_info['low']}")
+            it3 += 1
+
         filepath = get_file(s_code)  # code needs sh or sz
         df = get_consider(filepath)
         it2 += 1
-
-
 
