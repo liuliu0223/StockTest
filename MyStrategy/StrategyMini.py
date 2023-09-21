@@ -1,14 +1,15 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
 import datetime
-import os
+import sys
 import backtrader as bt
-import akshare as ak
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 import baostock as bs
 import talib as ta
+
+import MyStrategy.PrepairData as prd
 
 # const value
 STAKE = 1500  # volume once
@@ -16,7 +17,8 @@ START_CASH = 150000  # initial cost
 COMM_VALUE = 0.002   # 费率
 WIN_ENV_FLAG = False  # windows环境设置
 FILEDIR = 'stocks'
-CODES_FILE = 'text.txt'
+TRAIN_DIR = "train"
+STOCK_INFO_FILE = "text.txt"
 
 # globle value
 stock_pnl = []  # Net profit
@@ -155,24 +157,31 @@ def run_strategy(f_startdate, f_enddate, f_data, f_stake=STAKE):
     cerebro.addsizer(bt.sizers.FixedSize, stake=stake)  # set trade volume
     cerebro.addstrategy(Strategymine)  # period = [(5, 10), (20, 100), (2, 10)]) , 运行策略
     cerebro.run(maxcpus=1)  # 运行回测系统
-    # cerebro.plot(style='candlestick')  # 画图
+    #cerebro.plot(style='candlestick', title='stock')  # 画图
 
 
 # 计算MACD指标参数
-def computeMACD(code, startdate, enddate):
-    login_result = bs.login(user_id='anonymous', password='123456')
+def computeMACD(f_code, f_startdate, f_enddate):
+    plt.rcParams["font.sans-serif"] = ["SimHei"]  # set Chinese to draw picture
+    plt.rcParams["axes.unicode_minus"] = False  # 设置画图时的负号显示
+    '''
+    #login_result = bs.login(user_id='anonymous', password='123456')
+    login_result = bs.login()
     print(login_result)
     # 获取股票日 K 线数据
     rs = bs.query_history_k_data(code,
                                  "date,code,close,tradeStatus",
                                  start_date=startdate,
                                  end_date=enddate,
-                                 frequency="d", adjustflag="3")
+                                 frequency="d", adjustflag="3")'''
+    rs = prd.prepare_data_k(f_code, f_startdate, f_enddate)
     # 打印结果集
     result_list = []
+    df2 = None
     while (rs.error_code == '0') & rs.next():
         # 获取一条记录，将记录合并在一起
         result_list.append(rs.get_row_data())
+    if len(result_list) > 0:
         df = pd.DataFrame(result_list, columns=rs.fields)
         # 剔除停盘数据
         df2 = df[df['tradeStatus'] == '1']
@@ -180,18 +189,30 @@ def computeMACD(code, startdate, enddate):
         # 记住了 dif,dea,hist 前 33 个为 Nan，所以推荐用于计算的数据量一般为你所求日期之间数据量的 3 倍
     # 这里计算的 hist 就是 dif-dea,而很多证券商计算的 MACD=hist*2=(difdea)*2
     dif, dea, hist = ta.MACD(df2['close'].astype(float).values, fastperiod=12, slowperiod=26, signalperiod=9)
-    df3 = pd.DataFrame({'dif': dif[33:], 'dea': dea[33:], 'hist':hist[33:]},index=df2['date'][33:], columns=['dif', 'dea','hist'])
-    df3.plot(title='MACD')
-    plt.show()
+    df3 = pd.DataFrame({'dif': dif[33:], 'dea': dea[33:], 'hist': hist[33:]},
+                       index=df2['date'][33:],
+                       columns=['dif', 'dea', 'hist'])
+    code = prd.getcodebytype(f_code, ctype=None)
+    df_info = prd.get_sh_stock(code)
+    code_name = df_info.values[5][1]
+    plot_name = 'MACD_' + code_name
+    df3.plot(title=plot_name)
+    #plt.show()
+    Special_ops = []
     # 寻找 MACD 金叉和死叉
     datenumber = int(df3.shape[0])
     for i in range(datenumber - 1):
         if ((df3.iloc[i, 0] <= df3.iloc[i, 1]) & (df3.iloc[i + 1, 0] >= df3.iloc[i + 1, 1])):
+            txt = "MACD golden cross date：" + df3.index[i + 1]
+            Special_ops.append({'code': f_code, 'date': df3.index[i + 1], 'msg': txt})
             print("MACD 金叉的日期：" + df3.index[i + 1])
-    if ((df3.iloc[i, 0] >= df3.iloc[i, 1]) & (df3.iloc[i + 1, 0] <=df3.iloc[i + 1, 1])):
-        print("MACD 死叉的日期：" + df3.index[i + 1])
+        if ((df3.iloc[i, 0] >= df3.iloc[i, 1]) & (df3.iloc[i + 1, 0] <=df3.iloc[i + 1, 1])):
+            print("MACD 死叉的日期：" + df3.index[i + 1])
+            txt = "MACD dead cross date：" + df3.index[i + 1]
+            Special_ops.append({'code': f_code, 'date': df3.index[i + 1], 'msg': txt})
     bs.logout()
-    return (dif, dea, hist)
+    plt.close()
+    return (dif, dea, hist, Special_ops)
 
 
 def calculateEMA(period, closeArray, emaArray=[]):
@@ -222,16 +243,37 @@ def calculateMACD(closeArray, shortPeriod=12, longPeriod=26, signalPeriod=9):
     return fast_values[-1], slow_values[-1], diff_values[-1]    # 返回最新的快慢线和macd值
     # return round(fast_values[-1],5), round(slow_values[-1],5), round(diff_values[-1],5)
 
-
+'''
 def getMACD():
     data = RequestUtil.sendRequest_GET(UrlConstant.Get_K_Line)
     closeArray = [float(i[4]) for i in data]
     closeArray.reverse()
     return calculateMACD(closeArray)
-
+'''
 
 if __name__ == '__main__':
-    code = 'sh.600000'
-    startdate = '2017-03-01'
-    enddate = '2017-12-01'
-    (dif, dea, hist) = computeMACD(code, startdate, enddate)
+    #code = 'sh.600000'
+    #startdate = '2017-03-01'
+    #enddate = '2017-12-01'
+
+    print(sys.path)
+    # get the code data from websit
+    codes = prd.get_codes(STOCK_INFO_FILE)
+    startdate = str(codes[0]).replace('\n', '')  # 回测开始时间
+    enddate = str(codes[1]).replace('\n', '')  # 回测结束时间
+    it = 0
+    code = ""
+    filepath = ""
+    train_file = ""
+
+    for code in codes:
+        if it > 1:
+            code = str(codes[it]).replace('\n', '')  # "sz300598"
+            stock_file = prd.prepare_data(code, startdate, enddate)
+            # 加载数据，进行数据处理和分析
+            df = prd.load_data(stock_file)
+            code_name = prd.get_sh_stock(code).values[5][1]  # code include sh
+            #c_code = prd.getcodebytype(code, ctype='SpecialString')
+            (dif, dea, hist) = computeMACD(code, startdate, enddate)
+            print(f'-----{code},{code_name} analyze end!')
+        it += 1
