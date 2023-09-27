@@ -236,9 +236,8 @@ class MyStrategy(bt.Strategy):
 
 
 def get_work_path(pack_name):
-    work_path = os.path.join(os.getcwd(), pack_name)
+    return os.path.join(os.getcwd(), pack_name)
     #print(f"get_work_path: os.getcwd=%s, \npack_name=%s, get_work_path=%s\n" % (os.getcwd(), pack_name, work_path))
-    return work_path
 
 
 def get_codes(name):
@@ -335,10 +334,12 @@ def get_sh_stock(s_code):   # stock code must be begin with numeral, s_code=6006
 
 def get_stocks():
     filename = CODES_FILE
+    '''
     if MyStrategy.params.pslow == 20:
         filename = "text520.txt"
     elif MyStrategy.params.pslow == 30:
         filename = "text530.txt"
+    '''
     return filename
 
 
@@ -453,6 +454,8 @@ if __name__ == '__main__':
     it = 0
     code = ""
     Special_ops = []
+    result_list = []
+    # 第一段：买卖回测模拟
     for code in codes:
         if it > 1:
             code = str(codes[it]).replace('\n', '')  # "sz300598"
@@ -465,13 +468,15 @@ if __name__ == '__main__':
                 print(f"code: {code_value.value[4]}, name：{code_value.value[5]}")
                 (dif, dea, hist, Special_ops) = smini.computeMACD(code, startdate, enddate)
                 if len(Special_ops) > 0:
-                    Special_ops.append(Special_ops)
+                    result_list.append(Special_ops)
                 stock_list.append(code_value.value[5])
                 run_strategy(startdate, enddate, filepath)
             else:
                 break
         it += 1
+    # 第二段：优选股
     stock_rank()  # 列出优选对象
+    # 第三段：特殊操作提醒 SMA均线长短期交叉买卖提示
     print(f"Test Date: {datetime.date.today()}")
     print(f"Initial Fund: {START_CASH}, Stack: {STAKE}\nPeriod：{startdate}~{enddate}")
     # set special operation in the special date
@@ -491,22 +496,25 @@ if __name__ == '__main__':
         print(f"{b4_s_date}, open: {b4_s_date_info['open']}, close: {b4_s_date_info['close']}, "
               f"high: {b4_s_date_info['high']}, low: {b4_s_date_info['low']}")
         s_code = getcodebytype(code, ctype='String')
+        # MACD均线 操作提醒
         it3 = 0
-        while it3 < len(Special_ops) & len(Special_ops) > 0:
-            c_code = getcodebytype(Special_ops[it3]['code'], ctype='String')
-            c_date = Special_ops[it3]['date']
-            b4_s_date = get_business_day(s_date, days=-1)
-            b4_s_date_info = my_stock.get_stock_by_date(code, b4_s_date)
-            if c_code == s_code & c_date == s_date:
-                b4_s_date = get_business_day(c_date, days=-1)
+        while it3 < len(result_list) & len(result_list) > 0:
+            tmp_result = result_list[it3]
+            it4 = 0
+            while it4 < len(tmp_result):
+                c_code = getcodebytype(tmp_result[it4]['code'], "")
+                c_date = tmp_result[it4]['date']
+                c_msg = tmp_result[it4]['msg']
+                b4_s_date = get_business_day(s_date, days=-1)
                 b4_s_date_info = my_stock.get_stock_by_date(code, b4_s_date)
-                print(f"\n[MACD Specal opt is :{code_name}]")
-                print('%s, %s' % (c_date, Special_ops[it3]['msg']))
-                print(f"{b4_s_date}, open: {b4_s_date_info['open']}, close: {b4_s_date_info['close']}, "
-                      f"high: {b4_s_date_info['high']}, low: {b4_s_date_info['low']}")
+                if c_code == s_code and c_date == s_date:
+                    b4_s_date = get_business_day(c_date, days=-1)
+                    b4_s_date_info = my_stock.get_stock_by_date(code, b4_s_date)
+                    print('%s, %s' % (c_date, c_msg))
+                it4 += 1
             it3 += 1
-
         filepath = get_file(s_code)  # code needs sh or sz
+        # 第四段：均值，极值提示
         df = get_consider(filepath)
         it2 += 1
 
