@@ -162,18 +162,10 @@ def run_strategy(f_startdate, f_enddate, f_data, f_stake=STAKE):
 
 # 计算MACD指标参数
 def computeMACD(f_code, f_startdate, f_enddate):
+    plt.switch_backend('agg')
     plt.rcParams["font.sans-serif"] = ["SimHei"]  # set Chinese to draw picture
     plt.rcParams["axes.unicode_minus"] = False  # 设置画图时的负号显示
-    '''
-    #login_result = bs.login(user_id='anonymous', password='123456')
-    login_result = bs.login()
-    print(login_result)
-    # 获取股票日 K 线数据
-    rs = bs.query_history_k_data(code,
-                                 "date,code,close,tradeStatus",
-                                 start_date=startdate,
-                                 end_date=enddate,
-                                 frequency="d", adjustflag="3")'''
+
     rs = prd.prepare_data_k(f_code, f_startdate, f_enddate)
     # 打印结果集
     result_list = []
@@ -243,19 +235,8 @@ def calculateMACD(closeArray, shortPeriod=12, longPeriod=26, signalPeriod=9):
     return fast_values[-1], slow_values[-1], diff_values[-1]    # 返回最新的快慢线和macd值
     # return round(fast_values[-1],5), round(slow_values[-1],5), round(diff_values[-1],5)
 
-'''
-def getMACD():
-    data = RequestUtil.sendRequest_GET(UrlConstant.Get_K_Line)
-    closeArray = [float(i[4]) for i in data]
-    closeArray.reverse()
-    return calculateMACD(closeArray)
-'''
 
 if __name__ == '__main__':
-    #code = 'sh.600000'
-    #startdate = '2017-03-01'
-    #enddate = '2017-12-01'
-
     print(sys.path)
     # get the code data from websit
     codes = prd.get_codes(STOCK_INFO_FILE)
@@ -265,7 +246,7 @@ if __name__ == '__main__':
     code = ""
     filepath = ""
     train_file = ""
-
+    special_ops = None
     for code in codes:
         if it > 1:
             code = str(codes[it]).replace('\n', '')  # "sz300598"
@@ -273,7 +254,7 @@ if __name__ == '__main__':
             # 加载数据，进行数据处理和分析
             df = prd.load_data(stock_file)
             code_name = prd.get_sh_stock(code).values[5][1]  # code include sh
-            #c_code = prd.getcodebytype(code, ctype='SpecialString')
-            (dif, dea, hist) = computeMACD(code, startdate, enddate)
+            # code = 'sh.600000'，startdate = '2017-03-01'，enddate = '2017-12-01'
+            (dif, dea, hist, special_ops) = computeMACD(code, startdate, enddate)
             print(f'-----{code},{code_name} analyze end!')
         it += 1
