@@ -12,12 +12,12 @@ import sys
 import MyStrategy.PrepairData as prd
 import MyStrategy.PreTreat as PT
 import MyStrategy.XGBoostModelTest as xgbt
-import MyStrategy.XgboostModel as xgbm
+
 
 WIN_ENV_FLAG = False
 ROUNDNUM = 720
 time_windows = 3
-RATE = 0.8
+RATE = 0.9
 FILEDIR = "stocks"
 TRAIN_DIR = "train"
 STOCK_INFO_FILE = "text.txt"
@@ -50,7 +50,8 @@ if __name__ == '__main__':
                 pre_deal = PT.PreTreadData(all_data_set)  # 数据预处理，清理空值
                 data_set_process = pre_deal.series_to_supervised(all_data_set, time_windows)  # 取近time_windows天的数据，平移数据
                 train_file = pre_deal.create_trainfile(code, data_set_process)
-                delta = xgbt.xgb_train(data_set_process, roundnum=ROUNDNUM, time_windows=time_windows, train_size_rate=RATE)    # 归一化、混淆并训练数据
-                result = pre_deal.create_trainfile((code + "_pred"), delta)
+                pre_data = xgbt.xgb_train(data_set_process, roundnum=ROUNDNUM, time_windows=time_windows,
+                                          train_size_rate=RATE)    # 归一化、混淆并训练数据
+                result = pre_deal.create_trainfile((code + "_pred"), pre_data)
                 print(f'-----{code},{code_name} analyze end!')
         it += 1

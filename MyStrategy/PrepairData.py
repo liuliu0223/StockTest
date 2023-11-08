@@ -7,7 +7,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-
+import baostock as bs
 
 WIN_ENV_FLAG = False
 STOCK_FILEDIR = "stocks"
@@ -15,7 +15,14 @@ STOCK_INFO_FILE = "text.txt"
 
 
 def get_work_path(pack_name):
-    work_path = os.path.join(os.getcwd(), pack_name)
+    if pack_name == "":
+        return os.getcwd()
+    else:
+        pos = os.getcwd().find(pack_name)
+    if pos < 0:
+        work_path = os.path.join(os.getcwd(), pack_name)
+    else:
+        work_path = os.getcwd()
     #print(f"get_work_path: os.getcwd=%s, \npack_name=%s, get_work_path=%s\n" % (os.getcwd(), pack_name, work_path))
     return work_path
 
@@ -47,6 +54,7 @@ def getcodebytype(code, ctype):
     num_code_type = False
     if len(code) == 6:
         num_code_type = True
+
     if ctype is None:
         if num_code_type:
             if "6" == code[:1]:
@@ -58,13 +66,23 @@ def getcodebytype(code, ctype):
             return s_code
         else:
             return s_code[2:]
-
+    elif ctype == 'SpecialString':
+        if num_code_type:
+            if "6" == code[:1]:
+                s_code = "sh." + code
+            else:
+                s_code = "sz." + code
+        else:
+            if s_code.find('.') < 0:
+                s_code = s_code[:2] + '.' + s_code[2:]
     else:
         if num_code_type:
             if "6" == code[:1]:
                 s_code = "sh" + code
             else:
                 s_code = "sz" + code
+        elif len(s_code) > 8:
+            s_code = s_code[:2] + s_code[3:]
     return s_code
 
 
@@ -79,18 +97,44 @@ def get_sh_stock(s_code):   # stock code mustbe begin with numeral
 def prepare_data(f_code, f_startdate, f_enddate):
     path_ = os.path.join(os.getcwd(), STOCK_FILEDIR)
     csv_file = os.path.join(path_, f"{f_code}.csv")
-    print("file的title信息：" + csv_file)
+    print("file path info：" + csv_file)
     get_sh_stock(f_code)
     file = open(csv_file, 'w', encoding='utf-8')
     # 默认返回不复权的数据; qfq: 返回前复权后的数据; hfq: 返回后复权后的数据; hfq-factor: 返回后复权因子; qfq-factor: 返回前复权因子
     stock_hfq_df = ak.stock_zh_a_daily(symbol=f_code, start_date=f_startdate, end_date=f_enddate,
-                                       adjust="qfq")  # 接口参数格式 股票代码必须含有sh或zz的前缀
+                                       adjust="qfq")  # 接口参数格式 股票代码必须含有sh或sz的前缀
     if stock_hfq_df is None:
         print("Warning, run_strategy: stock_hfq_df is None!")
     else:
         stock_hfq_df.to_csv(file, encoding='utf-8')
         file.close()
     return csv_file
+
+
+def prepare_data_k(f_code, f_startdate, f_enddate):
+    path_ = os.path.join(os.getcwd(), STOCK_FILEDIR)
+    csv_file = os.path.join(path_, f"{f_code}_k.csv")
+    print("file path k info: " + csv_file)
+    get_sh_stock(f_code)
+    file = open(csv_file, 'w', encoding='utf-8')
+    login_result = bs.login()
+    print(login_result)
+    code = getcodebytype(f_code, ctype='SpecialString')
+    startdate = datetime.datetime.strftime(pd.to_datetime(f_startdate), "%Y-%m-%d")
+    enddate = datetime.datetime.strftime(pd.to_datetime(f_enddate), "%Y-%m-%d")
+    # 获取股票日 K 线数据
+    rs = bs.query_history_k_data(code,
+                                 "date,code,close,tradeStatus",
+                                 start_date=startdate,
+                                 end_date=enddate,
+                                 frequency="d", adjustflag="3")
+    if rs is None:
+        print("Warning, run_strategy: stock_hfq_df is None!")
+    else:
+        rs_df = pd.DataFrame(rs.data, columns=['date', 'code', 'close', 'tradeStatus'])
+        rs_df.to_csv(file, encoding='utf-8')
+        file.close()
+    return rs
 
 
 def load_data(file_path):
@@ -100,7 +144,8 @@ def load_data(file_path):
 
 
 # 数据转换为对应的类型，判断转换的数据是否存在缺失值，并进行删除
-def pure_data(df, column_name):
+def pure_data(f_data, column_name):
+    df = f_data
     drop_column = None
     if column_name is not None:
         drop_column = column_name
@@ -110,7 +155,6 @@ def pure_data(df, column_name):
     list_columns = df.columns
     it = 0
     while it < len(list_columns):
-        #if list_columns[it] == 'Unnamed: 0':
         if drop_column is None:
             break
         else:

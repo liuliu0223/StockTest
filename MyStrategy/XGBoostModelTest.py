@@ -8,12 +8,11 @@ import xgboost as xgb
 from matplotlib import pyplot as plt
 import numpy as np
 
+
 # prarams:
 #         roundnum:迭代次数
 #         time_windows:平移窗口数
 #         size_rate:训练数据占比
-
-
 def xgb_train(data, roundnum, time_windows=3, train_size_rate=0.8):
     data_set_process = data
     scaler = MinMaxScaler(feature_range=(0, 1))
@@ -75,10 +74,14 @@ def xgb_train(data, roundnum, time_windows=3, train_size_rate=0.8):
     transform_data = scaler.inverse_transform(tmp_test)
     pred_data = pd.DataFrame(transform_data)
     pred_data.drop(pred_data.columns[: len(pred_data.columns)-1], axis=1, inplace=True)
-    pred_data.columns = ['close(t+1)']
-    max_pred = np.max(pred_data)
-    min_pred = np.min(pred_data)
-    std_pred = np.std(pred_data)
+    max_pred = 0
+    min_pred = 0
+    std_pred = 0
+    pred_list = pred_data.values.tolist()
+    if pred_list is not None:
+        max_pred = np.max(pred_list, axis=1)
+        min_pred = np.min(pred_list, axis=1)
+        std_pred = np.std(pred_list, axis=1)
 
     # 时间列表，与测试数据集相匹配
     date_list = pd.DataFrame(data).T.columns[train_size:len(data_set_process)]
@@ -87,12 +90,15 @@ def xgb_train(data, roundnum, time_windows=3, train_size_rate=0.8):
     print(f"预测值:\n{pred_data}")
 
     # 打印参数值
-    print(f"XGBboostModel.params: \n'booster': %s, 'objective': %s, 'gamma': %.2f, 'max_depth': %d, 'lambda': %.2f, 'subsample': %.2f, "
-          f"'colsample_bytree': %.2f, 'min_child_weight': %d, 'slient': %d, 'eta': %.2f, 'seed': %d, 'nthread': %d" % (params['booster'],
-          params['objective'], params['gamma'], params['max_depth'], params['lambda'], params['subsample'],
-          params['colsample_bytree'], params['min_child_weight'], params['slient'], params['eta'], params['seed'], params['nthread']))
+    print(f"XGBboostModel.params: \n'booster': %s, 'objective': %s, 'gamma': %.2f, 'max_depth': %d, 'lambda': %.2f, "
+          f"'subsample': %.2f, 'colsample_bytree': %.2f, 'min_child_weight': %d, 'slient': %d, 'eta': %.2f, "
+          f"'seed': %d, 'nthread': %d" % (params['booster'], params['objective'], params['gamma'], params['max_depth'],
+                                          params['lambda'], params['subsample'], params['colsample_bytree'],
+                                          params['min_child_weight'], params['slient'], params['eta'], params['seed'],
+                                          params['nthread']))
 
     mape_xgb = np.mean(np.abs(y_pred_xgb-test_XGB_Y)/test_XGB_Y)*100
     print('XGBoostModelTest.py ----- XGBoost平均误差率为：{}%'.format(mape_xgb))  # 平均误差率为1.1974%
-    print('XGBoostModelTest.py ----- max:%.2f, min:%.2f, std:%.2f' % (max_pred, min_pred, std_pred))
+    print(f'XGBoostModelTest.py ----- max:%.2f, min:%.2f, std:%.2f' % (max_pred, min_pred, std_pred))
+    plt.close()
     return (pred_data)

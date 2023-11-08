@@ -50,15 +50,15 @@ class PreTreadData:
         col_numbers_drop = []
         for i in range(len(data_columns) - 1):
             col_numbers_drop.append(len_ + i)
-
         agg.drop(agg.columns[col_numbers_drop], axis=1, inplace=True)  # inplace=True用替换后的数据
-
         return agg
 
-    def create_trainfile(self, code, data_datafram):
+    def create_trainfile(self,
+                         code,
+                         data):
         train_file = os.path.join(prd.get_work_path(TRAIN_DIR), f"{code}.csv")
         file = open(train_file, 'w', encoding='utf-8')
-        data_datafram.to_csv(file, encoding='utf-8')
+        data.to_csv(file, encoding='utf-8')
         #print(data_datafram.columns.values)
         #print(data_datafram.info())
         file.close()

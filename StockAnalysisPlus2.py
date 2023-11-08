@@ -390,12 +390,13 @@ def get_consider(f_filepath):
           (min_median, min_value, min_std, min_mean))
     print('Close median value: %.2f, Close max: %.2f, Close min: %.2f, Close std: %.2f, Close mean: %.2f' %
           (close_median, close_max, close_min, close_std, close_mean))
-    return sdf
+    return sdf, close_mean
 
 
 # 从指定文件中读取数据，并运行回测函数
-def run_strategy(f_startdate, f_enddate, f_file):
-    sdf = get_consider(f_file)
+def run_strategy(f_startdate, f_enddate, code):
+    filepath = prepare_data(code, startdate, enddate)
+    sdf, close_mean = get_consider(filepath)
     from_date = datetime.datetime.strptime(f_startdate, "%Y%m%d")
     end_date = datetime.datetime.strptime(f_enddate, "%Y%m%d")
     data = bt.feeds.PandasData(dataname=sdf, fromdate=from_date, todate=end_date)  # 加载数据
@@ -404,7 +405,10 @@ def run_strategy(f_startdate, f_enddate, f_file):
     cerebro.adddata(data)  # 将数据传入回测系统
     cerebro.broker.setcash(START_CASH)  # set initial fund
     cerebro.broker.setcommission(commission=COMM_VALUE)  # set trad rate 0.2%
-    cerebro.addsizer(bt.sizers.FixedSize, stake=STAKE)  # set trade volume
+    stake = STAKE
+    if close_mean > 90:
+        stake = 500
+    cerebro.addsizer(bt.sizers.FixedSize, stake=stake)  # set trade volume
     cerebro.addstrategy(MyStrategy)  # period = [(5, 10), (20, 100), (2, 10)]) , 运行策略
     cerebro.run(maxcpus=1)  # 运行回测系统
     port_value = cerebro.broker.getvalue()  # trade over, get total fund
@@ -444,13 +448,29 @@ def stock_rank():
     print(f"截止到{datetime.date.today()}日的正向profit total pnl: {pnl}, profit rate: {rate_profit}%\n")
 
 
+def market_info(date):
+    date_ = str(date) # date type："20211227"
+    stock_szse_deal_daily_df = ak.stock_sse_deal_daily(date_)
+    stock_sse_deal_df = ak.stock_szse_summary(date_)
+    print(stock_szse_deal_daily_df)
+    print(stock_sse_deal_df)
+    # 涨停股池
+    stock_zt_pool_previous_em_df = ak.stock_zt_pool_previous_em(date=date_)
+    print(stock_zt_pool_previous_em_df)
+    # 跌停股池
+    stock_zt_pool_dtgc_em_df = ak.stock_zt_pool_dtgc_em(date=date_)
+    print(stock_zt_pool_dtgc_em_df)
+    return stock_zt_pool_previous_em_df, stock_zt_pool_dtgc_em_df
+
+
 if __name__ == '__main__':
     plt.switch_backend('agg')
     plt.rcParams["font.sans-serif"] = ["SimHei"]  # set Chinese to draw picture
     plt.rcParams["axes.unicode_minus"] = False  # 设置画图时的负号显示
     codes = get_codes(get_stocks())
-    startdate = str(codes[0]).replace('\n', '')  # 回测开始时间
-    enddate = str(codes[1]).replace('\n', '')  # 回测结束时间
+    startdate = str(codes[0]).replace('\n', '')  # 回测开始时间 date type："20211227"
+    enddate = str(codes[1]).replace('\n', '')  # 回测结束时间 date type："20211227"
+
     it = 0
     code = ""
     Special_ops = []
@@ -470,7 +490,7 @@ if __name__ == '__main__':
                 if len(Special_ops) > 0:
                     result_list.append(Special_ops)
                 stock_list.append(code_value.value[5])
-                run_strategy(startdate, enddate, filepath)
+                run_strategy(startdate, enddate, code)
             else:
                 break
         it += 1
@@ -518,3 +538,13 @@ if __name__ == '__main__':
         df = get_consider(filepath)
         it2 += 1
 
+'''
+# 当天股市涨跌池情况
+    print("Stock Market analysis begin! \n")
+    today = datetime.datetime.now().strftime("%Y-%m-%d")
+    yesterday_spe = get_business_day(today, days=-1)
+    yesterday = yesterday_spe.replace("-", "")
+    #yesterday = "20231024"
+    upstocks, downstocks = market_info(yesterday)
+    print("Stock Market analysis end!")
+'''

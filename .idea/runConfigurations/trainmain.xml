@@ -1,18 +1,17 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="PrepairData" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
+  <configuration default="false" name="trainmain" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
     <module name="PyProject1.0" />
     <option name="INTERPRETER_OPTIONS" value="" />
     <option name="PARENT_ENVS" value="true" />
     <envs>
       <env name="PYTHONUNBUFFERED" value="1" />
     </envs>
-    <option name="SDK_HOME" value="" />
-    <option name="SDK_NAME" value="Python 3.11 (StockTest-tag-V1.0.1)" />
-    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+    <option name="SDK_HOME" value="C:\Users\user\PycharmProjects\pythonProject\venv\Scripts\python.exe" />
+    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/MyStrategy" />
     <option name="IS_MODULE_SDK" value="false" />
     <option name="ADD_CONTENT_ROOTS" value="true" />
     <option name="ADD_SOURCE_ROOTS" value="true" />
-    <option name="SCRIPT_NAME" value="$PROJECT_DIR$/MyStrategy/PrepairData.py" />
+    <option name="SCRIPT_NAME" value="$PROJECT_DIR$/MyStrategy/trainmain.py" />
     <option name="PARAMETERS" value="" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
