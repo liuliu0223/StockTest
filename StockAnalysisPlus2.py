@@ -499,11 +499,33 @@ if __name__ == '__main__':
     # 第三段：特殊操作提醒 SMA均线长短期交叉买卖提示
     print(f"Test Date: {datetime.date.today()}")
     print(f"Initial Fund: {START_CASH}, Stack: {STAKE}\nPeriod：{startdate}~{enddate}")
+
+    my_stock = MyStock()
+    # MACD均线 操作提醒
+    print("MACD info Begin:\n")
+    it5 = 0
+    tmp_date = datetime.date.today()
+    ss_date = datetime.datetime.strftime(tmp_date, "%Y-%m-%d")
+    b4_s_date = get_business_day(ss_date, days=-1)
+    while it5 < len(result_list) & len(result_list) > 0:
+        tmp_result = result_list[it5]
+        it6 = 0
+        while it6 < len(tmp_result):
+            c_code = getcodebytype(tmp_result[it6]['code'], "")
+            c_date = tmp_result[it6]['date']
+            c_msg = tmp_result[it6]['msg']
+            if c_date == b4_s_date:
+                code_value = get_sh_stock(c_code)  # code include sh
+                code_name = code_value.values[5][1]
+                print(f"MACD Date: {c_date} \n")
+                print(f"{code_name} : {c_msg}")
+            it6 += 1
+        it5 += 1
+    print("MACD info End!\n")
     # set special operation in the special date
     it2 = 0
     code = ""
     code_name = ""
-    my_stock = MyStock()
     while it2 < len(special_info):
         code_value = get_sh_stock(special_info[it2]['code'])   # code include sh
         code_name = code_value.values[5][1]
@@ -533,6 +555,7 @@ if __name__ == '__main__':
                     print('%s, %s' % (c_date, c_msg))
                 it4 += 1
             it3 += 1
+        # MACD均线 操作提醒结束
         filepath = get_file(s_code)  # code needs sh or sz
         # 第四段：均值，极值提示
         df = get_consider(filepath)
