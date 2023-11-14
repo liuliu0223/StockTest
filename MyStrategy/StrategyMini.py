@@ -179,7 +179,7 @@ def computeMACD(f_code, f_startdate, f_enddate):
         df2 = df[df['tradeStatus'] == '1']
         # 获取 dif,dea,hist，它们的数据类似是 tuple，且跟 df2 的 date 日期一一对应
         # 记住了 dif,dea,hist 前 33 个为 Nan，所以推荐用于计算的数据量一般为你所求日期之间数据量的 3 倍
-    # 这里计算的 hist 就是 dif-dea,而很多证券商计算的 MACD=hist*2=(difdea)*2
+    # 这里计算的 hist 就是 dif-dea,而很多证券商计算的 MACD=hist*2=(dif-dea)*2
     dif, dea, hist = ta.MACD(df2['close'].astype(float).values, fastperiod=12, slowperiod=26, signalperiod=9)
     df3 = pd.DataFrame({'dif': dif[33:], 'dea': dea[33:], 'hist': hist[33:]},
                        index=df2['date'][33:],
@@ -195,12 +195,25 @@ def computeMACD(f_code, f_startdate, f_enddate):
     datenumber = int(df3.shape[0])
     for i in range(datenumber - 1):
         if ((df3.iloc[i, 0] <= df3.iloc[i, 1]) & (df3.iloc[i + 1, 0] >= df3.iloc[i + 1, 1])):
-            txt = "MACD golden cross date：" + df3.index[i + 1]
+            delta_dif = df3.iloc[i + 1, 0] - df3.iloc[i, 0]
+            delta_dea = df3.iloc[i + 1, 1] - df3.iloc[i, 1]
+            txt = "MACD golden cross date：" + df3.index[i + 1] + "; latest dif:" \
+                        + str(round(float(df3.iloc[i + 1, 0]), 2)) + "; latest dea: " \
+                        + str(round(float(df3.iloc[i + 1, 1]), 2)) + "; delta_dif:" \
+                        + str(round(float(delta_dif), 2)) + "; delta_dea: " \
+                        + str(round(float(delta_dea), 2))
+
             Special_ops.append({'code': f_code, 'date': df3.index[i + 1], 'msg': txt})
             print("MACD 金叉的日期：" + df3.index[i + 1])
         if ((df3.iloc[i, 0] >= df3.iloc[i, 1]) & (df3.iloc[i + 1, 0] <=df3.iloc[i + 1, 1])):
             print("MACD 死叉的日期：" + df3.index[i + 1])
-            txt = "MACD dead cross date：" + df3.index[i + 1]
+            delta_dif = df3.iloc[i + 1, 0] - df3.iloc[i, 0]
+            delta_dea = df3.iloc[i + 1, 1] - df3.iloc[i, 1]
+            txt = "MACD dead cross date：" + df3.index[i + 1] + "; latest dif:" \
+                        + str(round(float(df3.iloc[i + 1, 0]), 2)) + "; latest dea: " \
+                        + str(round(float(df3.iloc[i + 1, 1]), 2)) + "; delta_dif:" \
+                        + str(round(float(delta_dif), 2)) + "; delta_dea: " \
+                        + str(round(float(delta_dea), 2))
             Special_ops.append({'code': f_code, 'date': df3.index[i + 1], 'msg': txt})
     bs.logout()
     plt.close()

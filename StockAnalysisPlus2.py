@@ -502,10 +502,16 @@ if __name__ == '__main__':
 
     my_stock = MyStock()
     # MACD均线 操作提醒
-    print("MACD info Begin:\n")
+    print("MACD info Begin:")
     it5 = 0
     tmp_date = datetime.date.today()
     ss_date = datetime.datetime.strftime(tmp_date, "%Y-%m-%d")
+    '''
+    if datetime.datetime.strptime(enddate, "%Y-%m-%d") - tmp_date > 0:
+        ss_date = datetime.datetime.strftime(tmp_date, "%Y-%m-%d")
+    else:
+        ss_date = str(enddate[:4] + "-" + enddate[4:6] + "-" + enddate[6:])
+        '''
     b4_s_date = get_business_day(ss_date, days=-1)
     while it5 < len(result_list) & len(result_list) > 0:
         tmp_result = result_list[it5]
@@ -517,7 +523,7 @@ if __name__ == '__main__':
             if c_date == b4_s_date:
                 code_value = get_sh_stock(c_code)  # code include sh
                 code_name = code_value.values[5][1]
-                print(f"MACD Date: {c_date} \n")
+                #print(f"MACD Date: {c_date}")
                 print(f"{code_name} : {c_msg}")
             it6 += 1
         it5 += 1
