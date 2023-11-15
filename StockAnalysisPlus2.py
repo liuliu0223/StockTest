@@ -504,14 +504,11 @@ if __name__ == '__main__':
     # MACD均线 操作提醒
     print("MACD info Begin:")
     it5 = 0
-    tmp_date = datetime.date.today()
-    ss_date = datetime.datetime.strftime(tmp_date, "%Y-%m-%d")
-    '''
-    if datetime.datetime.strptime(enddate, "%Y-%m-%d") - tmp_date > 0:
-        ss_date = datetime.datetime.strftime(tmp_date, "%Y-%m-%d")
-    else:
-        ss_date = str(enddate[:4] + "-" + enddate[4:6] + "-" + enddate[6:])
-        '''
+    today_date = datetime.datetime.today()
+    ss_date = str(enddate[:4] + "-" + enddate[4:6] + "-" + enddate[6:])
+    date_ss_date = datetime.datetime.strptime(ss_date, '%Y-%m-%d')
+    if date_ss_date > today_date:
+        ss_date = today_date.strftime("%Y-%m-%d")
     b4_s_date = get_business_day(ss_date, days=-1)
     while it5 < len(result_list) & len(result_list) > 0:
         tmp_result = result_list[it5]

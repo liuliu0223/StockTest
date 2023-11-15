@@ -194,26 +194,34 @@ def computeMACD(f_code, f_startdate, f_enddate):
     # 寻找 MACD 金叉和死叉
     datenumber = int(df3.shape[0])
     for i in range(datenumber - 1):
+        dif = round(float(df3.iloc[i + 1, 0]), 2)
+        dea = round(float(df3.iloc[i + 1, 1]), 2)
+        delta_dif = df3.iloc[i + 1, 0] - df3.iloc[i, 0]
+        delta_dea = df3.iloc[i + 1, 1] - df3.iloc[i, 1]
+        hist = round(float(df3.iloc[i + 1, 2]), 2)
+        txt = "MACD date：" + df3.index[i + 1] + "; latest dif:" \
+              + str(dif) + "; latest dea: " + str(dea) + "; hist:" \
+              + str(round(float(hist), 2))
+        print(txt)
+        if (hist > 0) & (dif < 0):
+            txt = "MACD 0轴下，上升趋势：" + df3.index[i + 1] + "; latest dif:" \
+              + str(dif) + "; latest dea: " + str(dea) + "; hist:" \
+              + str(round(float(hist), 2))
+            Special_ops.append({'code': f_code, 'date': df3.index[i + 1], 'msg': txt})
+        elif (hist < 0) & (dif > 0):
+            txt = "MACD 0轴上,下降趋势：" + df3.index[i + 1] + "; latest dif:" \
+              + str(dif) + "; latest dea: " + str(dea) + "; hist:" \
+              + str(round(float(hist), 2))
+            Special_ops.append({'code': f_code, 'date': df3.index[i + 1], 'msg': txt})
         if ((df3.iloc[i, 0] <= df3.iloc[i, 1]) & (df3.iloc[i + 1, 0] >= df3.iloc[i + 1, 1])):
-            delta_dif = df3.iloc[i + 1, 0] - df3.iloc[i, 0]
-            delta_dea = df3.iloc[i + 1, 1] - df3.iloc[i, 1]
             txt = "MACD golden cross date：" + df3.index[i + 1] + "; latest dif:" \
-                        + str(round(float(df3.iloc[i + 1, 0]), 2)) + "; latest dea: " \
-                        + str(round(float(df3.iloc[i + 1, 1]), 2)) + "; delta_dif:" \
-                        + str(round(float(delta_dif), 2)) + "; delta_dea: " \
-                        + str(round(float(delta_dea), 2))
-
+              + str(dif) + "; latest dea: " + str(dea) + "; hist:" + str(round(float(hist), 2))
             Special_ops.append({'code': f_code, 'date': df3.index[i + 1], 'msg': txt})
             print("MACD 金叉的日期：" + df3.index[i + 1])
         if ((df3.iloc[i, 0] >= df3.iloc[i, 1]) & (df3.iloc[i + 1, 0] <=df3.iloc[i + 1, 1])):
             print("MACD 死叉的日期：" + df3.index[i + 1])
-            delta_dif = df3.iloc[i + 1, 0] - df3.iloc[i, 0]
-            delta_dea = df3.iloc[i + 1, 1] - df3.iloc[i, 1]
             txt = "MACD dead cross date：" + df3.index[i + 1] + "; latest dif:" \
-                        + str(round(float(df3.iloc[i + 1, 0]), 2)) + "; latest dea: " \
-                        + str(round(float(df3.iloc[i + 1, 1]), 2)) + "; delta_dif:" \
-                        + str(round(float(delta_dif), 2)) + "; delta_dea: " \
-                        + str(round(float(delta_dea), 2))
+              + str(dif) + "; latest dea: " + str(dea) + "; hist:" + str(round(float(hist), 2))
             Special_ops.append({'code': f_code, 'date': df3.index[i + 1], 'msg': txt})
     bs.logout()
     plt.close()
