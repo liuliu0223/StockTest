@@ -170,6 +170,7 @@ def computeMACD(f_code, f_startdate, f_enddate):
     # 打印结果集
     result_list = []
     df2 = None
+    df3 = None
     while (rs.error_code == '0') & rs.next():
         # 获取一条记录，将记录合并在一起
         result_list.append(rs.get_row_data())
@@ -196,36 +197,53 @@ def computeMACD(f_code, f_startdate, f_enddate):
     for i in range(datenumber - 1):
         dif = round(float(df3.iloc[i + 1, 0]), 2)
         dea = round(float(df3.iloc[i + 1, 1]), 2)
-        delta_dif = df3.iloc[i + 1, 0] - df3.iloc[i, 0]
-        delta_dea = df3.iloc[i + 1, 1] - df3.iloc[i, 1]
         hist = round(float(df3.iloc[i + 1, 2]), 2)
-        txt = "MACD date：" + df3.index[i + 1] + "; latest dif:" \
-              + str(dif) + "; latest dea: " + str(dea) + "; hist:" \
-              + str(round(float(hist), 2))
+        txt = "MACD date：" + df3.index[i + 1] + ";  dif:" \
+              + str(dif) + ";  dea: " + str(dea) + "; hist:" + str(hist)
         print(txt)
-        if (hist > 0) & (dif < 0):
-            txt = "MACD 0轴下，上升趋势：" + df3.index[i + 1] + "; latest dif:" \
-              + str(dif) + "; latest dea: " + str(dea) + "; hist:" \
-              + str(round(float(hist), 2))
-            Special_ops.append({'code': f_code, 'date': df3.index[i + 1], 'msg': txt})
-        elif (hist < 0) & (dif > 0):
-            txt = "MACD 0轴上,下降趋势：" + df3.index[i + 1] + "; latest dif:" \
-              + str(dif) + "; latest dea: " + str(dea) + "; hist:" \
-              + str(round(float(hist), 2))
-            Special_ops.append({'code': f_code, 'date': df3.index[i + 1], 'msg': txt})
+
         if ((df3.iloc[i, 0] <= df3.iloc[i, 1]) & (df3.iloc[i + 1, 0] >= df3.iloc[i + 1, 1])):
-            txt = "MACD golden cross date：" + df3.index[i + 1] + "; latest dif:" \
-              + str(dif) + "; latest dea: " + str(dea) + "; hist:" + str(round(float(hist), 2))
+            txt = "MACD golden cross date：" + df3.index[i + 1] + ";  dif:" \
+              + str(dif) + ";  dea: " + str(dea) + "; hist:" + str(hist)
             Special_ops.append({'code': f_code, 'date': df3.index[i + 1], 'msg': txt})
             print("MACD 金叉的日期：" + df3.index[i + 1])
         if ((df3.iloc[i, 0] >= df3.iloc[i, 1]) & (df3.iloc[i + 1, 0] <=df3.iloc[i + 1, 1])):
             print("MACD 死叉的日期：" + df3.index[i + 1])
-            txt = "MACD dead cross date：" + df3.index[i + 1] + "; latest dif:" \
-              + str(dif) + "; latest dea: " + str(dea) + "; hist:" + str(round(float(hist), 2))
+            txt = "MACD dead cross date：" + df3.index[i + 1] + ";  dif:" \
+              + str(dif) + ";  dea: " + str(dea) + "; hist:" + str(hist)
             Special_ops.append({'code': f_code, 'date': df3.index[i + 1], 'msg': txt})
     bs.logout()
     plt.close()
-    return (dif, dea, hist, Special_ops)
+    return (df3, Special_ops)
+
+
+# 计算MACD指标趋势
+def trendMACD(code, df, period=3):
+    str_period = str(period)
+    datanumber = int(df.shape[0])
+    Special_ops = []
+    for i in range(datanumber - period):
+        txt = ""
+        dif = round(float(df.iloc[i + period, 0]), 2)
+        dea = round(float(df.iloc[i + period, 1]), 2)
+        hist = round(float(df.iloc[i + period, 2]), 2)
+        delta_dif = dif - df.iloc[i, 0]
+        delta_dea = dea - df.iloc[i, 1]
+        delta_hist = hist - df.iloc[i, 2]
+        if (hist > 0) & (dif < 0) & (delta_hist > 0):
+            txt = "MACD " + str_period + "日趋势分析：0轴下，上升趋势：" + df.index[i + period] + ";  dif:" \
+              + str(dif) + ";  dea: " + str(dea) + "; hist:" + str(hist)
+            #Special_ops.append({'code': code, 'date': df.index[i + period], 'msg': txt})
+        elif (hist < 0) & (delta_hist < 0) & (dea > 0):
+            txt = "MACD " + str_period + "日趋势分析：0轴上，下降趋势：" + df.index[i + period] + ";  dif:" \
+              + str(dif) + ";  dea: " + str(dea) + "; hist:" + str(hist)
+            #Special_ops.append({'code': code, 'date': df.index[i + period], 'msg': txt})
+        elif (hist < 0) & (delta_hist < 0) & (dea < 0):
+            txt = "MACD " + str_period + "日趋势分析：0轴下，下降趋势：" + df.index[i + period] + ";  dif:" \
+              + str(dif) + ";  dea: " + str(dea) + "; hist:" + str(hist)
+        if len(txt) > 0:
+            Special_ops.append({'code': code, 'date': df.index[i + period], 'msg': txt})
+    return Special_ops
 
 
 def calculateEMA(period, closeArray, emaArray=[]):

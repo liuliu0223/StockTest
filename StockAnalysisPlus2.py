@@ -486,9 +486,12 @@ if __name__ == '__main__':
                 code_value = get_sh_stock(code)
                 # print(code_value)
                 print(f"code: {code_value.value[4]}, name：{code_value.value[5]}")
-                (dif, dea, hist, Special_ops) = smini.computeMACD(code, startdate, enddate)
+                (df_macd, Special_ops) = smini.computeMACD(code, startdate, enddate)
                 if len(Special_ops) > 0:
                     result_list.append(Special_ops)
+                Special_ops2 = smini.trendMACD(code, df_macd, period=5)
+                if len(Special_ops2) > 0:
+                    result_list.append(Special_ops2)
                 stock_list.append(code_value.value[5])
                 run_strategy(startdate, enddate, code)
             else:
