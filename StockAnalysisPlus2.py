@@ -10,12 +10,12 @@ import numpy as np
 
 import MyStrategy.StrategyMini as smini
 # const value
-STAKE = 1500  # volume once
-START_CASH = 150000  # initial cost
-COMM_VALUE = 0.002   # 费率
-WIN_ENV_FLAG = False  # windows环境设置
+STAKE = 1500          # volume once
+START_CASH = 150000   # initial cost
+COMM_VALUE = 0.002    # 费率
+MACD_PERIOD = 3       # MACD计算周期
 FILEDIR = 'stocks'
-CODES_FILE = 'text.txt'
+CODES_FILE = 'text.txt' # 股票代号文件
 
 # globle value
 stock_pnl = []  # Net profit
@@ -489,7 +489,7 @@ if __name__ == '__main__':
                 (df_macd, Special_ops) = smini.computeMACD(code, startdate, enddate)
                 if len(Special_ops) > 0:
                     result_list.append(Special_ops)
-                Special_ops2 = smini.trendMACD(code, df_macd, period=5)
+                Special_ops2 = smini.trendMACD(code, df_macd, period=MACD_PERIOD)
                 if len(Special_ops2) > 0:
                     result_list.append(Special_ops2)
                 stock_list.append(code_value.value[5])
