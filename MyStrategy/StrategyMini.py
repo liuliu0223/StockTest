@@ -234,6 +234,9 @@ def trendMACD(code, df, period=3):
             txt = "MACD " + str_period + "日趋势分析：0轴下，上升趋势：" + df.index[i + period] + ";  dif:" \
               + str(dif) + ";  dea: " + str(dea) + "; hist:" + str(hist)
             #Special_ops.append({'code': code, 'date': df.index[i + period], 'msg': txt})
+        elif (hist > 0) & (dif > 0) & (delta_hist > 0):
+            txt = "MACD " + str_period + "日趋势分析：0轴上，上升趋势：" + df.index[i + period] + ";  dif:" \
+                  + str(dif) + ";  dea: " + str(dea) + "; hist:" + str(hist)
         elif (hist < 0) & (delta_hist < 0) & (dea > 0):
             txt = "MACD " + str_period + "日趋势分析：0轴上，下降趋势：" + df.index[i + period] + ";  dif:" \
               + str(dif) + ";  dea: " + str(dea) + "; hist:" + str(hist)
